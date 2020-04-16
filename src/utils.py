@@ -151,30 +151,58 @@ def TV_loss(img):
 def determine_network_param(net):
     return sum(p.numel() for p in net.parameters() if p.requires_grad)
 
-def create_label_probabilities_from_dataset(dataset,MaxValue=90):
-    '''
-    This function creates a label probability vector U \in R^{n,nc}.
-    :param dataset: dataset to build the probability vector from
-    :param MaxValue: The value to assign to a labelled point
-    :return: U
-    '''
-    n = len(dataset)
-    if dataset.use_label_probabilities:
-        n,nc = dataset.labels.shape
-        U = np.zeros((n,nc))
-        for i,obs in enumerate(dataset.labels):
-            if obs[0].item() != -1:
-                U[i, :] = -MaxValue/(nc-1)
-                idx = torch.argmax(obs).item()
-                U[i, idx] = MaxValue
-    else:
-        classes = np.unique(dataset.labels_true)
-        nc = len(classes)
-        U = np.zeros((n,nc))
-        for i,obs in enumerate(dataset.labels):
-            if obs != -1:
-                U[i,:] = -MaxValue/(nc-1)
-                U[i,obs] = MaxValue
-    return U
+# def create_label_probabilities_from_dataset(dataset,MaxValue=90):
+#     '''
+#     This function creates a label probability vector U \in R^{n,nc}.
+#     :param dataset: dataset to build the probability vector from
+#     :param MaxValue: The value to assign to a labelled point
+#     :return: U
+#     '''
+#     n = len(dataset)
+#     if dataset.use_label_probabilities:
+#         n,nc = dataset.labels.shape
+#         U = np.zeros((n,nc))
+#         for i,obs in enumerate(dataset.labels):
+#             if obs[0].item() != -1:
+#                 U[i, :] = -MaxValue/(nc-1)
+#                 idx = torch.argmax(obs).item()
+#                 U[i, idx] = MaxValue
+#     else:
+#         classes = np.unique(dataset.labels_true)
+#         nc = len(classes)
+#         U = np.zeros((n,nc))
+#         for i,obs in enumerate(dataset.labels):
+#             if obs != -1:
+#                 U[i,:] = -MaxValue/(nc-1)
+#                 U[i,obs] = MaxValue
+#     return U
 
 
+# def update_label_probabilities_from_dataset(U,dataset,idxs,MaxValue=90):
+#     '''
+#     This function updates a  label probability vector U \in R^{n,nc}, the datapoints that will be updated are the ones in idxs.
+#     The update is done by setting all the known labels back to their original value, this will make the labels less smooth, but more correct.
+#     :param dataset: dataset to extract the known labels from
+#     :param MaxValue: The value to assign to a labelled point
+#     :return: U
+#     '''
+#     n = len(dataset)
+#     if dataset.use_label_probabilities:
+#         tmp = dataset.labels_true[idxs,:]
+#         n,nc = dataset.labels.shape
+#         U = np.zeros((n,nc))
+#         for i,obs in enumerate(dataset.labels):
+#             if obs[0].item() != -1:
+#                 U[i, :] = -MaxValue/(nc-1)
+#                 idx = torch.argmax(obs).item()
+#                 U[i, idx] = MaxValue
+#     else:
+#         classes = np.unique(dataset.labels_true)
+#         nc = len(classes)
+#         U = np.zeros((n,nc))
+#         for i,obs in enumerate(dataset.labels):
+#             if obs != -1:
+#                 U[i,:] = -MaxValue/(nc-1)
+#                 U[i,obs] = MaxValue
+#     return U
+#

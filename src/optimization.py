@@ -5,10 +5,8 @@ import numpy as np
 import torch
 import torchvision
 
-from src.losses import cross_entropy_probabilities
 
-
-def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None):
+def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True):
     '''
     Standard training routine.
     :param net: Network to train
@@ -20,6 +18,7 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
     :param dataloader_validate: Dataloader to test the accuracy on after each epoch.
     :param epochs: Number of epochs to train
     :param weights: The weights for all datapoint
+    :param use_probabilities: If False the target will be one-hot, otherwise it will be some kind of probability array (might be zero centered)
     :return:
     '''
     if isinstance(weights,np.ndarray):
@@ -30,16 +29,16 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
     t0 = time.time()
     for epoch in range(epochs):
         loss_epoch = 0
-        for i, (images, labels, idxs) in enumerate(dataloader_train):
+        for i, (images, labels, plabels, idxs) in enumerate(dataloader_train):
             images = images.to(device)
-            labels = labels.to(device)
-            optimizer.zero_grad()
-            outputs = net(images)
-            if dataloader_train.dataset.use_label_probabilities:
-                loss = cross_entropy_probabilities(input=outputs, target=labels) #Note we do not use the weights in this case, since the probabilities are inside the target, rather than used as weights
+            if use_probabilities:
+                target = plabels.to(device)
             else:
                 labels = labels.long()
-                loss = (weights[idxs]*loss_fnc(outputs, labels)).mean()
+                target = labels.to(device)
+            optimizer.zero_grad()
+            outputs = net(images)
+            loss = (weights[idxs] * loss_fnc(outputs, target)).mean()
             loss.backward()
             optimizer.step()
             loss_epoch += loss.item()
@@ -48,7 +47,7 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
             with torch.no_grad():
                 correct = 0
                 total = 0
-                for images_v, labels_v,_ in dataloader_validate:
+                for images_v, labels_v,_,_ in dataloader_validate:
                     images_v = images_v.to(device)
                     labels_v = labels_v.to(device)
                     outputs_v = net(images_v)
@@ -101,7 +100,7 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
     t0 = time.time()
     for epoch in range(epochs):
         loss_epoch = 0
-        for i, (images, _, _) in enumerate(dataloader_train):
+        for i, (images, _, _, _) in enumerate(dataloader_train):
             images = images.to(device)
             optimizer.zero_grad()
             _,decoded = net(images)

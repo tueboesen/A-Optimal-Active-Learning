@@ -18,13 +18,8 @@ def analyse_probability_matrix(U,dataset,LOG,L):
     Cpred = np.argmax(U,axis=1)
     nc = dataset.nc
     classes = np.asarray(range(nc))
-    if dataset.use_label_probabilities:
-        Ctrue = torch.argmax(dataset.labels_true,dim=1).numpy()
-        idxselect = np.nonzero((dataset.labels[:,0] >= 0).numpy())
-        Cselect = torch.argmax(dataset.labels[idxselect,:][0],dim=1).numpy()
-    else:
-        Ctrue = dataset.labels_true
-        Cselect = [num for num in dataset.labels if num >= 0]
+    Ctrue = dataset.labels_true
+    Cselect = [num for num in dataset.labels if num >= 0]
     nselect = np.bincount(Cselect,minlength=10)
     A = np.zeros((nc,nc),dtype=int)
     for i in classes: #pred class
@@ -113,14 +108,7 @@ def analyse_features(U,dataset,LOG,save=None,iter=None):
     classes = np.asarray(range(nc))
     Cpred = np.argmax(U,axis=1)
     Ctrue = dataset.labels_true
-    if dataset.use_label_probabilities:
-        Ctrue = torch.argmax(dataset.labels_true,dim=1).numpy()
-        idxselect = np.nonzero((dataset.labels[:,0] >= 0).numpy())
-        Cselect = torch.argmax(dataset.labels[idxselect,:][0],dim=1).numpy()
-    else:
-        Ctrue = dataset.labels_true
-        Cselect = [num for num in dataset.labels if num >= 0]
-    nselect = np.bincount(Cselect,minlength=10)
+    Cselect = [num for num in dataset.labels if num >= 0]
     A = np.zeros((nc,nc),dtype=int)
     for i in classes: #pred class
         Ctrue_i = np.asarray(Ctrue)[Cpred == i]

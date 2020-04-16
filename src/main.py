@@ -13,11 +13,12 @@ from src.IO import load_autoencoder, save_state
 from src.Laplacian import compute_laplacian
 from src.active_learning import OEDA
 from src.dataloader import Load_MNIST, set_labels
+from src.losses import cross_entropy_probabilities
 from src.networks import ResidualBlock, ResNet
 from src.networks_ae import select_network
 from src.optimization import train_AE, eval_net, train
 from src.report import analyse_probability_matrix, analyse_features
-from src.utils import determine_network_param, fix_seed, create_label_probabilities_from_dataset
+from src.utils import determine_network_param, fix_seed
 
 
 def main(c):
@@ -37,7 +38,7 @@ def main(c):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
     # Load Dataset
-    MNIST_train, MNIST_test = Load_MNIST(batch_size=c['batch_size'],nsamples=c['nsamples'],device=device,order_data=c['order_dataset'],use_label_probabilities=c['use_label_probabilities'])
+    MNIST_train, MNIST_test = Load_MNIST(batch_size=c['batch_size'],nsamples=c['nsamples'],device=device,order_data=c['order_dataset'])
 
     if c['use_AE']: #Do we use an Autoencoder?
         if c['load_AE']:
@@ -72,7 +73,10 @@ def main(c):
     }
 
     # Select loss function
-    loss_fnc = nn.CrossEntropyLoss(ignore_index=-1,reduction='none')
+    if c['use_label_probabilities']:
+        loss_fnc = cross_entropy_probabilities(reduction='none')
+    else:
+        loss_fnc = nn.CrossEntropyLoss(ignore_index=-1,reduction='none')
 
     if c['use_adaptive_active_learning']:
         LOG.info('Starting adaptive active learning...')
@@ -82,32 +86,33 @@ def main(c):
         nc = MNIST_train.dataset.nc
 
         MNIST_train = set_labels(c['nlabels'], MNIST_train, class_balance=True)  # Lets start by having all classes represented by some labels
-        y = create_label_probabilities_from_dataset(MNIST_train.dataset)
-        idxs = np.nonzero(y[:,0])[0]
+        yobs = MNIST_train.dataset.plabels.numpy()
+        idxs = np.nonzero(yobs[:,0])[0]
         w = np.zeros(L.shape[0])
         w[idxs] = 1
         L = L + 1e-3*identity(L.shape[0])
         idx_learned = set(idxs)
         for i in range(c['epochs_AL']):
             if c['use_1_vs_all']:
-                yi = np.zeros((y.shape[0],1))
+                yi = np.zeros((yobs.shape[0],1))
                 for j in range(nc):
-                    yi[:,0] = np.sign(y[:,j])
-                    w = OEDA(w,L,yi,c['alpha'],c['sigma'],c['lr_OED'],c['nlabels_pr_epoch_pr_class'],idx_learned)
+                    yi[:,0] = np.sign(yobs[:,j])
+                    w = OEDA(w,L,yi,c['alpha'],c['sigma'],c['lr_AL'],c['nlabels_pr_epoch_pr_class'],idx_learned)
                     idx = np.nonzero(w)[0]
                     idx_learned.update(idx)
             else:
-                w = OEDA(w,L,y,c['alpha'],c['sigma'],c['lr_OED'],c['nlabels_pr_epoch_pr_class'],idx_learned)
+                w = OEDA(w,L,y,c['alpha'],c['sigma'],c['lr_AL'],c['nlabels_pr_epoch_pr_class'],idx_learned)
                 idx = np.nonzero(w)[0]
                 idx_learned.update(idx)
             MNIST_train = set_labels(list(idx_learned), MNIST_train)
-            U = create_label_probabilities_from_dataset(MNIST_train.dataset)
-            y = SSL_clustering(c['alpha'], L, U,balance_weights=True)
+            yobs = MNIST_train.dataset.plabels
+            y = SSL_clustering(c['alpha'], L, yobs,balance_weights=True)
             analyse_probability_matrix(y, MNIST_train.dataset,LOG,L)
+            y[list(idx_learned)] = MNIST_train.dataset.plabels[list(idx_learned)]   # We update the known plabels to their true value
             #train a network on this data
             MNIST_train = set_labels(y, MNIST_train)
             netAL = train(netAL, optimizerAL, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test,
-                  epochs=c['epochs_SL'])
+                  epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
             features_netAL = eval_net(netAL, MNIST_train.dataset, device=device) #we should probably have the option of combining these with the previous features.
             analyse_features(features_netAL, MNIST_train.dataset, LOG, save=result_dir,iter=i)
             L, A = compute_laplacian(features_netAL, metric='l2', knn=9, union=True)

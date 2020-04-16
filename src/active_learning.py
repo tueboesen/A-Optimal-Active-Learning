@@ -94,6 +94,8 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,use_stochastic_approximate=True,saf
     :return: w with the new indices included
     '''
     t0 = time.time()
+    if ns <= 0:
+        return w
     if use_stochastic_approximate:
         v = np.sign(np.random.normal(0,1,(y.shape[0],1)))
     else:
@@ -102,7 +104,7 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,use_stochastic_approximate=True,saf
     nfound = 0
     i = 0
     while True:
-        f,df,bias,_,var,_ = getOEDA(w,L,y,v,alpha,sigma)
+        f,df,bias,_,var,_ = getOEDA(w,L,y,alpha,sigma,v)
         ind = np.argmax(np.abs(df))
         w[ind] = w[ind] - lr*df[ind]
         if ind not in idx_learned:
