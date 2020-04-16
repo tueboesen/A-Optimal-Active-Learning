@@ -15,11 +15,12 @@ context = {
     'nsamples': 100,                                        #Number of samples in dataset
     'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
     'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
-    'use_label_probabilities': False,                        #Switch the labels from onehot to a probabilities
+    'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
     'batch_size': 16,
     #Supervised learning
     'epochs_SL': 3,                                         #Epochs for supervised learning
     'lr': 1e-2,
+    'loss_type': 'MSE',                                     #Options are MSE and CE
 
     #Active learning
     'epochs_AL': 10,                                        #Iterations to use in Active learning

@@ -13,7 +13,7 @@ from src.IO import load_autoencoder, save_state
 from src.Laplacian import compute_laplacian
 from src.active_learning import OEDA
 from src.dataloader import Load_MNIST, set_labels
-from src.losses import cross_entropy_probabilities
+from src.losses import select_loss_fnc
 from src.networks import ResidualBlock, ResNet
 from src.networks_ae import select_network
 from src.optimization import train_AE, eval_net, train
@@ -47,9 +47,9 @@ def main(c):
         else:
             LOG.info("Setting up and training an autoencoder...")
             netAE = select_network(c['network_AE'],c['decode_dim'])
-            LOG.info('Number of parameters: {}'.format(determine_network_param(netAE)))
+            LOG.info('Number of parameters in autoencoder: {}'.format(determine_network_param(netAE)))
             optimizerAE = optim.Adam(list(netAE.parameters()), lr=c['lr_AE'],weight_decay=1e-5)
-            loss_fnc_ae = nn.MSELoss(reduction='sum') #Loss function for autoencoder
+            loss_fnc_ae = nn.MSELoss(reduction='sum') #Loss function for autoencoder should always be MSE
             netAE,features = train_AE(netAE,optimizerAE,MNIST_train,loss_fnc_ae,LOG,device=device,epochs=c['epochs_AE'],save="{}/{}.png".format(result_dir, 'autoencoder'))
             state = {'features': features,
                      'epochs_AE': c['epochs_AE'],
@@ -59,7 +59,7 @@ def main(c):
                      'npar_AE': determine_network_param(netAE),
                      'result_dir': result_dir,
                      'autoencoder_state': netAE.state_dict()}
-            save_state(state, "{}/{}.pt".format(result_dir, 'autoencoder'))
+            save_state(state, "{}/{}.pt".format(result_dir, 'autoencoder')) #We save the trained autoencoder and the encoded space, as well as some characteristica of the network and samples used to train it.
     else: # We just use the images as features directly
         features = MNIST_train.dataset.imgs
 
@@ -73,10 +73,7 @@ def main(c):
     }
 
     # Select loss function
-    if c['use_label_probabilities']:
-        loss_fnc = cross_entropy_probabilities(reduction='none')
-    else:
-        loss_fnc = nn.CrossEntropyLoss(ignore_index=-1,reduction='none')
+    loss_fnc = select_loss_fnc(c['loss_type'],c['use_label_probabilities'])
 
     if c['use_adaptive_active_learning']:
         LOG.info('Starting adaptive active learning...')
@@ -121,7 +118,7 @@ def main(c):
         LOG.info("Selecting {:5d} labels".format(len(idx)))
         if c['nlabels'] <= 0:
             c['nlabels'] = len(idx) #We set the number of labels to match the ones from active learning
-        netAL = train(netAL, optimizerAL, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test, epochs=c['epochs_SL'])
+        netAL = train(netAL, optimizerAL, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test, epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
         LOG.info('DONE WITH ADAPTIVE LEARNING!')
         # Active learning step, designate which labels to use
     #
