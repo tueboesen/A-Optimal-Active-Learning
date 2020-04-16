@@ -93,11 +93,11 @@ def main(c):
                 yi = np.zeros((y.shape[0],1))
                 for j in range(nc):
                     yi[:,0] = np.sign(y[:,j])
-                    w = OEDA(w,L,yi,c['alpha'],c['sigma'],c['lr_OED'],c['nlabels_pr_epoch'],idx_learned)
+                    w = OEDA(w,L,yi,c['alpha'],c['sigma'],c['lr_OED'],c['nlabels_pr_epoch_pr_class'],idx_learned)
                     idx = np.nonzero(w)[0]
                     idx_learned.update(idx)
             else:
-                w = OEDA(w,L,y,c['alpha'],c['sigma'],c['lr_OED'],c['nlabels_pr_epoch'],idx_learned)
+                w = OEDA(w,L,y,c['alpha'],c['sigma'],c['lr_OED'],c['nlabels_pr_epoch_pr_class'],idx_learned)
                 idx = np.nonzero(w)[0]
                 idx_learned.update(idx)
             MNIST_train = set_labels(list(idx_learned), MNIST_train)
