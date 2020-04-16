@@ -138,6 +138,14 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
     return net,encoded
 
 def run_AE(net,dataloader,device='cpu'):
+    '''
+    This function is used to an already trained autoencoder on a dataset in smaller batches. This should be removed and merged with eval_net instead
+    :param net:
+    :param dataloader:
+    :param device:
+    :return:
+    '''
+    #TODO merge with EVAL_net()
     net.to(device)
     net.eval()
     with torch.no_grad():

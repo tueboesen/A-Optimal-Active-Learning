@@ -79,10 +79,11 @@ def main(c):
         LOG.info('Starting adaptive active learning...')
         netAL = ResNet(**net_args)
         LOG.info('Number of parameters: {}'.format(determine_network_param(netAL)))
-        optimizerAL = optim.Adam(list(netAL.parameters()), lr=c['lr'])
+        optimizerAL = optim.Adam(list(netAL.parameters()), lr=c['lr'],weight_decay=1e-5)
         nc = MNIST_train.dataset.nc
 
-        MNIST_train = set_labels(c['nlabels'], MNIST_train, class_balance=True)  # Lets start by having all classes represented by some labels
+        # We start by randomly assigning nlabels
+        MNIST_train = set_labels(c['nlabels'], MNIST_train, class_balance=True)
         yobs = MNIST_train.dataset.plabels.numpy()
         idxs = np.nonzero(yobs[:,0])[0]
         w = np.zeros(L.shape[0])
@@ -90,6 +91,7 @@ def main(c):
         L = L + 1e-3*identity(L.shape[0])
         idx_learned = set(idxs)
         for i in range(c['epochs_AL']):
+            # We use Active learning to find the next batch of data points to label
             if c['use_1_vs_all']:
                 yi = np.zeros((yobs.shape[0],1))
                 for j in range(nc):
@@ -101,13 +103,16 @@ def main(c):
                 w = OEDA(w,L,y,c['alpha'],c['sigma'],c['lr_AL'],c['nlabels_pr_epoch_pr_class'],idx_learned)
                 idx = np.nonzero(w)[0]
                 idx_learned.update(idx)
+            #With the data points found, we update the labels in our dataset
             MNIST_train = set_labels(list(idx_learned), MNIST_train)
             yobs = MNIST_train.dataset.plabels
+
+            #We predict the labels for all the unknown points
             y = SSL_clustering(c['alpha'], L, yobs,balance_weights=True)
             analyse_probability_matrix(y, MNIST_train.dataset,LOG,L)
             y[list(idx_learned)] = MNIST_train.dataset.plabels[list(idx_learned)]   # We update the known plabels to their true value
+            MNIST_train = set_labels(y, MNIST_train) #We save the label probabilities in y, into the dataloader
             #train a network on this data
-            MNIST_train = set_labels(y, MNIST_train)
             netAL = train(netAL, optimizerAL, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test,
                   epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
             features_netAL = eval_net(netAL, MNIST_train.dataset, device=device) #we should probably have the option of combining these with the previous features.
