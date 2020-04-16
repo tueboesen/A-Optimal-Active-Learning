@@ -1,9 +1,10 @@
+import time
+
 import numpy as np
 from scipy import sparse
 from scipy.sparse import identity, diags
-from scipy.sparse.linalg import spsolve, cg
-import time
-import random
+from scipy.sparse.linalg import cg
+
 
 def update_laplacian(L,y,Lmax,idxs,y_truth,idxs_learned=None):
     if idxs_learned is None:
@@ -75,15 +76,33 @@ def getOEDB(w,L,v,alpha):
     return bias,dbias
 
 
-def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned):
+def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,use_stochastic_approximate=True,safety_stop=200):
+    '''
+    Finds the next ns points to learn, according to:
+    min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
+    s.t. 0<= w
+    :param w: the weight of the points already learned
+    :param L: Graph Laplacian
+    :param y: Labels (The code can handle y being a probability vector, but it doesn't lead to good results so far)
+    :param alpha: hyperparameter
+    :param sigma: hyperparameter - strength of variance term
+    :param lr: learning rate
+    :param ns: Number of points to learn
+    :param idx_learned: Indices of points already learned, will be iteratively updated as new points are found.
+    :param use_stochastic_approximate: If true it uses a vector of +-1 to stochasticically approximate the inverse matrices.
+    :param safety_stop: This function risk running for a very long time trying to find all the ns samples required, and could even be stuck in an infinite loop if all samples have been learned. This sets the maximum number of iteration to run.
+    :return: w with the new indices included
+    '''
     t0 = time.time()
-    v = np.sign(np.random.normal(0,1,(y.shape[0],1)))
-    # v = identity(L.shape[0]).tocsc()
+    if use_stochastic_approximate:
+        v = np.sign(np.random.normal(0,1,(y.shape[0],1)))
+    else:
+        v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
     print('Iter  found      f         bias         var      time(s)')
     nfound = 0
     i = 0
     while True:
-        f,df,bias,_,var,_ = getOEDA(w,y,L,v,alpha,sigma)
+        f,df,bias,_,var,_ = getOEDA(w,L,y,v,alpha,sigma)
         ind = np.argmax(np.abs(df))
         w[ind] = w[ind] - lr*df[ind]
         if ind not in idx_learned:
@@ -98,11 +117,23 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned):
         t1 = time.time()
         print("{:3d}   {:3d}    {:3.2e}    {:3.2e}    {:3.2e}     {:.1f}".format(i, nfound, f, alpha ** 2 * bias,
                                                                               sigma ** 2 * var, t1 - t0))
-        if i>200:
+        if i>=safety_stop:
             break
     return w
 
-def getOEDA(w,y,L,v,alpha,sigma):
+def getOEDA(w,L,y,alpha,sigma,v):
+    '''
+    Computes the value and derivatives of:
+    f(w) =  \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
+    with bias = ||H^{-1} L y ||^2  and variance =  \Trace (W H^{-2} W)
+    :param w: the weight of the points already learned
+    :param L: Graph Laplacian
+    :param y: Labels (The code can handle y being a probability vector, but it doesn't lead to good results so far)
+    :param alpha: hyperparameter
+    :param sigma: hyperparameter - strength of variance term
+    :param v: can be either a vector or a matrix, if it is a random vector +-1 the matrix inverse will be stochastically approximated, if it is an identity matrix the inverse will be exact (but much slower)
+    :return:
+    '''
     W = diags(w)
     H = L + alpha * W
     bias = cgmatrix(H, L @ y)
@@ -118,6 +149,18 @@ def getOEDA(w,y,L,v,alpha,sigma):
     return f,df,biasSq,dbiasSq,var,dvar
 
 def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
+    '''
+    Computes the conjugate gradient solution to Ax=B, where B is a Matrix
+    :param A:
+    :param B:
+    :param tol:
+    :param maxiter:
+    :param M:
+    :param x0:
+    :param callback:
+    :param atol:
+    :return:
+    '''
     nrhs = B.shape[1]
     x = np.zeros_like(B)
     for i in range(nrhs):

@@ -1,7 +1,8 @@
 import random
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-import numpy as np
 
 
 # Define some functions
@@ -146,3 +147,34 @@ def TV_loss(img):
     tv_h = ((img[:, :, 1:, :] - img[:, :, :-1, :]).pow(2)).sum()
     tv_w = ((img[:, :, :, 1:] - img[:, :, :, :-1]).pow(2)).sum()
     return tv_h + tv_w
+
+def determine_network_param(net):
+    return sum(p.numel() for p in net.parameters() if p.requires_grad)
+
+def create_label_probabilities_from_dataset(dataset,MaxValue=90):
+    '''
+    This function creates a label probability vector U \in R^{n,nc}.
+    :param dataset: dataset to build the probability vector from
+    :param MaxValue: The value to assign to a labelled point
+    :return: U
+    '''
+    n = len(dataset)
+    if dataset.use_label_probabilities:
+        n,nc = dataset.labels.shape
+        U = np.zeros((n,nc))
+        for i,obs in enumerate(dataset.labels):
+            if obs[0].item() != -1:
+                U[i, :] = -MaxValue/(nc-1)
+                idx = torch.argmax(obs).item()
+                U[i, idx] = MaxValue
+    else:
+        classes = np.unique(dataset.labels_true)
+        nc = len(classes)
+        U = np.zeros((n,nc))
+        for i,obs in enumerate(dataset.labels):
+            if obs != -1:
+                U[i,:] = -MaxValue/(nc-1)
+                U[i,obs] = MaxValue
+    return U
+
+

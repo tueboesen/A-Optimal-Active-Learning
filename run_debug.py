@@ -1,43 +1,43 @@
 import os
-import metrics
-import inspect
-from main import main
+
+from src.main import main
 
 context = {
-    'seed': 123557,
-    'basename': os.path.basename(__file__).split(".")[0],
-    'epochs_AL': 10, #Active learning
-    'epochs_SL': 3, #Supervised learning
-    'report_pr_epoch': 1,
-    'batch_size': 16,
-    'lr': 1e-2,
+    'seed': 123557,                                         #Seed for reproduceability
+    'basename': os.path.basename(__file__).split(".")[0],   #Names the folder after this filename
+    #Determines which type of learning to test:
     'use_active_learning_tue': False,
     'use_active_learning': True,
     'use_adaptive_active_learning': True,
     'use_passive_learning': True,
     'use_class_balanced_learning': True,
-    'nsamples': 100,
-    'nlabels': 0,
-    'lr_OED': 1e-5,
+    #Dataset
+    'nsamples': 100,                                        #Number of samples in dataset
+    'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
+    'nlabels': 0,                                           #Number of labels to start with in an adaptive scheme
+    'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
+    'batch_size': 16,
+    #Supervised learning
+    'epochs_SL': 3,                                         #Epochs for supervised learning
+    'lr': 1e-2,
+
+    #Active learning
+    'epochs_AL': 10,                                        #Iterations to use in Active learning
+    'lr_AL': 1e-5,
+    'nlabels_pr_epoch': 5,                                  #Number of labels to learn in each iteration
     'alpha': 1,
     'sigma': 1,
     'beta': 100,
-    'order_dataset': True, #we have this because we have a graph where the classes need to be ordered for the graph to make sense
-    'use_label_probabilities': True,   #This will switch the label from a onehot to a probability
-    'use_1_vs_all': True,  #Solves the active learning problem in a 1 vs all scenario. Hence each class is pitched against all the others to make sure we probe all the different class boundaries (This should give us points from each decision boundary)
+    'use_1_vs_all': True,
+
     #Auto encoder
-    'use_AE': True,
+    'use_AE': False,                                        #Use an autoencoder to generate an encoded feature space
     'load_AE': '',#'results/autoencoders/10000_linear_10D/autoencoder.pt',
+    'epochs_AE': 3,
     'lr_AE': 1e-3,
-    'decode_dim': 10,
-    'epochs_AE': 3,  # Auto encoder
-    'network_AE': 'linear'
+    'network_AE': 'linear',                                 #Options are 'conv','linear'
+    'decode_dim': 10,                                       #When network is linear this determines the dimension of the encoded space.
 }
 
-all_metrics = inspect.getmembers(metrics, inspect.isfunction)
-
-for key, value in all_metrics:
-    context['metric_name'] = key
-    context['metric'] = value
-    losses = main(context)
+losses = main(context)
 

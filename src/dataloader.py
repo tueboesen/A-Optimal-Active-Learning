@@ -1,14 +1,14 @@
 # loader for MNIST
-import os
 
+import copy
+import random
+
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
-import copy
-import numpy as np
-import random
+from torch.utils.data import Dataset
+
 
 class Dataset_preload(Dataset):
     '''
@@ -47,20 +47,24 @@ class Dataset_preload(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,use_label_probabilities=False):
+def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,use_label_probabilities=False, download=False):
     '''
-    :param batch_size: batch_size desired in the dataloader.
-    :return: training_dataloader,testing_dataloader
+    Loads MNIST dataset into the pytorch dataloader structure
 
-    First time it is run it should be run with download=true, afterwards it can be set to false.
+
+    :param batch_size: number of data points return in each batch
+    :param nsamples: number of data points in the total set
+    :param device: device data is loaded to
+    :param order_data: should the images be sorted according to label? (they will still be randomly drawn)
+    :param use_label_probabilities: should labels be one hot, or a tensor of label probabilities
+    :param download: First time it is run it should be run with download=true, afterwards it can be set to false.
+    :return: MNIST_train, MNIST_test
     '''
-
     # transforms to apply to the data
     trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
-    # trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
 
     # MNIST dataset
-    MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=True)
+    MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=download)
     MNISTtestset = torchvision.datasets.MNIST(root='../data', train=False, transform=trans)
 
     MNISTtrainset_pre = Dataset_preload(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data,use_label_probabilities=use_label_probabilities)
@@ -73,121 +77,18 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,use_l
                                              shuffle=False, num_workers=0)
     return MNIST_train, MNIST_test
 
-def Load_Maps(image_dir, resize_height=48, resize_width=48, device='cpu', batch_size=500, paired=True, nsamples=-1):
-    '''
-    Given a folder it finds the train/test/val folders and pairs them up.
-    :param image_dir:
-    :param resize_height:
-    :param resize_width:
-    :param mean:
-    :param std:
-    :return:
-    '''
-    folders = ['train']
-    # folders = ['trainA','testA','valA','trainB','testB','valB']
-    dataloaders = {}
-    for folder in folders:
-        data_dir_A = os.path.join(image_dir,folder+'A')
-        data_dir_B = os.path.join(image_dir,folder+'B')
-        if paired:
-            data = Dataset_paired_preload(image_dirA=data_dir_A, image_dirB=data_dir_B, device=device, nsamples=nsamples, resize_height=resize_height, resize_width=resize_width)
-        else:
-            raise NotImplementedError
-        dataloader = DataLoader(dataset=data, batch_size=batch_size, shuffle=True, drop_last=True)
-        dataloaders.update({folder: dataloader})
-
-    return dataloaders
-
-
-class Maps_Dataset(Dataset):
-
-    def __init__(self, image_dir, resize_height=48, resize_width=48, mean=[.5, .5, .5], std=[.5, .5, .5]):
-        imgs = os.listdir(image_dir)
-        self.imgs = [os.path.join(image_dir, k) for k in imgs]
-        self.transform = transforms.Compose([
-            transforms.CenterCrop((resize_height, resize_width)),
-            transforms.ToTensor(), # Transform images to Tensor,Normalize it to range [0,1]
-            transforms.Normalize(mean=mean, std=std)]
-        )
-
-    def __getitem__(self, index):
-        img_path = self.imgs[index]
-        pil_img = Image.open(img_path)
-        data = self.transform(pil_img)
-
-        return data
-
-    def __len__(self):
-        return len(self.imgs)
-
-
-class Dataset_paired_preload(Dataset):
-    '''
-    This one preloads all the images and applies the transform on preload as well!
-    '''
-    def __init__(self, image_dirA, image_dirB, resize_height=48, resize_width=48, mean=[.5, .5, .5], std=[.5, .5, .5],device='cpu', nsamples=-1):
-        dirA = os.listdir(image_dirA)
-        dirB = os.listdir(image_dirB)
-        self.imgs_dirA = [os.path.join(image_dirA, k) for k in dirA]
-        self.imgs_dirB = [os.path.join(image_dirB, k) for k in dirB]
-        self.device = device
-        self.transform = transforms.Compose([
-            # transforms.CenterCrop((resize_height, resize_width)),
-            transforms.ToTensor(),  # Transform images to Tensor,Normalize it to range [0,1]
-            transforms.Normalize(mean=mean, std=std)]
-        )
-        self.imgsA = []
-        for img_dir in self.imgs_dirA:
-            img = self.transform(Image.open(img_dir))  #.to(device)
-            patches = img.data.unfold(0, 3, 3).unfold(1, resize_height, resize_height).unfold(2, resize_width, resize_width)
-            tmp= patches.reshape([-1,patches.shape[3],patches.shape[4],patches.shape[5]])
-            for i in range(tmp.shape[0]):
-                self.imgsA.append(tmp[i].squeeze())
-                if len(self.imgsA) == nsamples:
-                    break
-            if len(self.imgsA) == nsamples:
-                break
-
-        self.imgsB = []
-        for img_dir in self.imgs_dirB:
-            img = self.transform(Image.open(img_dir))  #.to(device)
-            patches = img.data.unfold(0, 3, 3).unfold(1, resize_height, resize_height).unfold(2, resize_width, resize_width)
-            tmp= patches.reshape([-1,patches.shape[3],patches.shape[4],patches.shape[5]])
-            for i in range(tmp.shape[0]):
-                self.imgsB.append(tmp[i].squeeze())
-                if len(self.imgsB) == nsamples:
-                    break
-            if len(self.imgsB) == nsamples:
-                break
-
-    def __getitem__(self, index):
-        imgA = self.imgsA[index].to(self.device)
-        imgB = self.imgsB[index].to(self.device)
-        return imgA, imgB
-
-    def __len__(self):
-        return len(self.imgsA)
-
-    #To determine mean/std use:
-    # mean = 0.
-    # std = 0.
-    # nb_samples = 0
-    # for data, _ in dataloader:
-    #     batch_samples = data.size(0)
-    #     data = data.view(batch_samples, data.size(1), -1)
-    #     mean += data.mean(2).sum(0)
-    #     std += data.std(2).sum(0)
-    #     nb_samples += batch_samples
-    # mean /= nb_samples
-    # std /= nb_samples
-
-
 def set_labels(idx,dataloader,class_balance=False):
-    #Sets the data labels on a dataloader
-    #If idx is a list, it labels those indices according to labels_true, and leaves all others unlabelled.
-    #If idx is an integer, it randomly labels that many indices according to labels_true.
-    #If idx is an array of size (n,nc) then it labels all the labels according to this array.
-    #If class_balance == True, the random labelling is done in such a way that each class has the same number of labels or at most 1 off.
+    '''
+    Sets the data labels on a dataloader
+    If idx is a list, it labels those indices according to labels_true, and leaves all others unlabelled.
+    If idx is an integer, it randomly labels that many indices according to labels_true.
+    If idx is an array of size (n,nc) then it labels all the labels according to this array.
+    If class_balance == True, the random labelling is done in such a way that each class has the same number of labels or at most 1 off.
+    :param idx: can be a list (of indices), integer, or array of probabilities (should be all samples)
+    :param dataloader: Dataloader to be updated.
+    :param class_balance: Only relevant if idx is an integer, it then makes sure the labels are set with equal number of labels from each class or as close as possible.
+    :return: Updated dataloader
+    '''
     if type(idx) is int:
         if class_balance:
             nidx = idx
@@ -208,7 +109,6 @@ def set_labels(idx,dataloader,class_balance=False):
                 assert len(indices) >= classes[i]
                 np.random.shuffle(indices)
                 idx += indices[0:classes[i]].tolist()
-                # idx.append(indices[0:classes[i]][:])
         else:
             nx = list(range(len(dataloader.dataset)))
             random.shuffle(nx)

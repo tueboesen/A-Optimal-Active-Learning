@@ -1,19 +1,32 @@
-import torch
 import time
-import matplotlib.pyplot as plt
-import torchvision
-import numpy as np
 
-from losses import cross_entropy_probabilities
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torchvision
+
+from src.losses import cross_entropy_probabilities
 
 
 def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None):
+    '''
+    Standard training routine.
+    :param net: Network to train
+    :param optimizer: Optimizer to use
+    :param dataloader_train: Data to train on
+    :param loss_fnc: loss function to use
+    :param LOG: LOG file handler to print to
+    :param device: device to perform computation on
+    :param dataloader_validate: Dataloader to test the accuracy on after each epoch.
+    :param epochs: Number of epochs to train
+    :param weights: The weights for all datapoint
+    :return:
+    '''
     if isinstance(weights,np.ndarray):
         weights = ((torch.from_numpy(weights)).float()).to(device)
     if weights is None:
         weights = torch.ones(len(dataloader_train.dataset)).to(device)
     net.to(device)
-    accuracy_list = []
     t0 = time.time()
     for epoch in range(epochs):
         loss_epoch = 0
@@ -43,21 +56,26 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
                     total += labels_v.size(0)
                     correct += (predicted == labels_v).sum()
                 accuracy = 100 * float(correct) / float(total)
-                accuracy_list.append(accuracy)
                 t1 = time.time()
                 LOG.info('Epoch: {:4d}  Loss: {:6.2f}  Accuracy: {:3.2f}%  Time: {:.2f} '.format(epoch, loss_epoch, accuracy, t1-t0))
             net.train()
     return net
 
-def eval_net(net,dataloader,device='cpu'):
+def eval_net(net,dataset,device='cpu',batchsize=501):
+    '''
+    Splits the dataset up into manageable batches and run each batch through the network and returns the output.
+    :param net: Network
+    :param dataloader: standard pytorch dataloader to iterate through. Note we do not use the builtin data
+    :param device:
+    :return:
+    '''
     net.to(device)
     net.eval()
     with torch.no_grad():
-        batchsize = 501
-        nsamples = len(dataloader.dataset)
+        nsamples = len(dataset)
         output_tmp = []
         for i in range(0, nsamples, batchsize):
-            batch = dataloader.dataset.imgs[i:min(i + batchsize,nsamples)]
+            batch = dataset.imgs[i:min(i + batchsize,nsamples)]
             outputi = net(batch.to(device))
             output_tmp.append(outputi.cpu())
         output = torch.cat(output_tmp, dim=0)
@@ -65,6 +83,20 @@ def eval_net(net,dataloader,device='cpu'):
     return output
 
 def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100,save=None):
+    '''
+    Training routine for an autoencoder
+    :param net: Network to train
+    :param optimizer: Optimizer to use
+    :param dataloader_train: Data to train on
+    :param loss_fnc: loss function to use
+    :param LOG: LOG file handler to print to
+    :param device: device to perform computation on
+    :param epochs: Number of epochs to train
+    :param save: if used, should be the filename (with path) of where to save an image of 100 random examples from the training set autoencoded and compared to their originals.
+    :return:
+        net -  trained network
+        encoded - the full dataset transformed by the fully trained network to its encoded space
+    '''
     net.to(device)
     t0 = time.time()
     for epoch in range(epochs):
