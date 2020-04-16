@@ -18,8 +18,9 @@ context = {
     'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
     'batch_size': 16,
     #Supervised learning
-    'epochs_SL': 10,                                         #Epochs for supervised learning
+    'epochs_SL': 20,                                        #Epochs for supervised learning
     'lr': 1e-2,
+    'loss_type': 'MSE',                                     #Options are MSE and CE
 
     #Active learning
     'epochs_AL': 10,                                        #Iterations to use in Active learning
