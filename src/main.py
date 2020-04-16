@@ -43,7 +43,7 @@ def main(c):
     if c['use_AE']: #Do we use an Autoencoder?
         if c['load_AE']:
             LOG.info("Loading autoencoder from file: {}".format(c['load_AE']))
-            netAE,features = load_autoencoder(c['load_AE'],c['nsamples'],c['decode_dim'],c['network_AE'])
+            netAE,features = load_autoencoder(c['load_AE'],LOG,c['nsamples'],c['decode_dim'],c['network_AE'])
         else:
             LOG.info("Setting up and training an autoencoder...")
             netAE = select_network(c['network_AE'],c['decode_dim'])

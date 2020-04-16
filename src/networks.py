@@ -1,7 +1,6 @@
 import torch
-import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
+
 
 def conv3x3(in_channels, out_channels, stride=1):
     return nn.Conv2d(in_channels, out_channels, kernel_size=3,
@@ -35,9 +34,13 @@ class ResidualBlock(nn.Module):
 
 # ResNet
 class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=10):
+    '''
+    This is a relatively simple resnet, that by default zeros the mean of the output, meaning that the label probabilities returned fullfil the constraint ye=0
+    '''
+    def __init__(self, block, layers, num_classes=10, zero_center=True):
         super(ResNet, self).__init__()
         self.in_channels = 16
+        self.zero_center = zero_center
         self.conv = conv3x3(1, 16)
         self.bn = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
@@ -69,6 +72,8 @@ class ResNet(nn.Module):
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
         out = self.fc(out)
+        if self.zero_center:
+            out = out - torch.mean(out,dim=1)[:,None]
         return out
 
 class ResNet_simple(nn.Module):

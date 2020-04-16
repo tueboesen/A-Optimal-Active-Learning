@@ -76,7 +76,7 @@ def getOEDB(w,L,v,alpha):
     return bias,dbias
 
 
-def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,use_stochastic_approximate=True,safety_stop=200):
+def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,use_stochastic_approximate=True,safety_stop=20):
     '''
     Finds the next ns points to learn, according to:
     min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
