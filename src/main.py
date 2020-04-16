@@ -96,11 +96,11 @@ def main(c):
                 yi = np.zeros((yobs.shape[0],1))
                 for j in range(nc):
                     yi[:,0] = np.sign(yobs[:,j])
-                    w = OEDA(w,L,yi,c['alpha'],c['sigma'],c['lr_AL'],c['nlabels_pr_epoch_pr_class'],idx_learned)
+                    w = OEDA(w,L,yi,c['alpha'],c['sigma'],c['lr_AL'],c['nlabels_pr_epoch_pr_class'],idx_learned,LOG)
                     idx = np.nonzero(w)[0]
                     idx_learned.update(idx)
             else:
-                w = OEDA(w,L,y,c['alpha'],c['sigma'],c['lr_AL'],c['nlabels_pr_epoch_pr_class'],idx_learned)
+                w = OEDA(w,L,y,c['alpha'],c['sigma'],c['lr_AL'],c['nlabels_pr_epoch_pr_class'],idx_learned,LOG)
                 idx = np.nonzero(w)[0]
                 idx_learned.update(idx)
             #With the data points found, we update the labels in our dataset
