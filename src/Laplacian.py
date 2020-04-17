@@ -100,8 +100,10 @@ def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
     t2 = time.time()
     if metric == 'l2':
         L, _ = Laplacian_Euclidian(features, A, dd)
-    else:
+    elif metric == 'cosine':
         L, _ = Laplacian_angular(features, A)
+    else:
+        raise ValueError('{} is not an implemented metric'.format(metric))
     t3 = time.time()
     print('ANN = {}'.format(t2-t1))
     print('L = {}'.format(t3-t2))

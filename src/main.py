@@ -64,7 +64,7 @@ def main(c):
         features = MNIST_train.dataset.imgs
 
     # Calculate Laplacian
-    L,A = compute_laplacian(features, metric='l2', knn=9, union=True)
+    L,A = compute_laplacian(features, metric=c['metric'], knn=c['knn'], union=True)
 
     # Setup Network Geometry
     net_args = {
@@ -117,7 +117,7 @@ def main(c):
                   epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
             features_netAL = eval_net(netAL, MNIST_train.dataset, device=device) #we should probably have the option of combining these with the previous features.
             analyse_features(features_netAL, MNIST_train.dataset, LOG, save=result_dir,iter=i)
-            L, A = compute_laplacian(features_netAL, metric='l2', knn=9, union=True)
+            L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
             L = L + 1e-3 * identity(L.shape[0])
 
         LOG.info("Selecting {:5d} labels".format(len(idx)))

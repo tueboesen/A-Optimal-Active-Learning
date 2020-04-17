@@ -21,6 +21,9 @@ context = {
     'epochs_SL': 3,                                         #Epochs for supervised learning
     'lr': 1e-2,
     'loss_type': 'MSE',                                     #Options are MSE and CE
+    # Grap Laplacian
+    'metric': 'l2',  # 'l2' or 'cosine'
+    'knn': 50,  # Number of nearest neighbours
 
     #Active learning
     'epochs_AL': 10,                                        #Iterations to use in Active learning
