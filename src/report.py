@@ -86,10 +86,10 @@ def plot_distribution_matrix(v,save=None,iter=None):
         else:
             hot_v[i,label] = 1
     plt.imshow(hot_v, cmap=cm.gray, aspect='auto')
-    plt.pause(1)
     if save:
         fileloc = "{}/{}_{}.png".format(save, 'distribution',iter)
         fig.savefig(fileloc)
+    plt.close(fig)
     return
 
 def analyse_features(U,dataset,LOG,save=None,iter=None):
@@ -160,8 +160,8 @@ def analyse_features(U,dataset,LOG,save=None,iter=None):
     tit = "right labels certainty: {:.4f} +- {:.4f}".format(np.mean(Uprob_max_right),np.var(Uprob_max_right))
     LOG.info(tit)
     plt.title(tit)
-    plt.pause(1)
     if save:
         fileloc = "{}/{}_{}.png".format(save, 'histogram',iter)
         fig.savefig(fileloc)
+    plt.close(fig)
     return Accuracy

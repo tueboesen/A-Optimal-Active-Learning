@@ -52,7 +52,7 @@ class Dataset_preload_with_label_prob(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,download=False):
+def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,download=True):
     '''
     Loads MNIST dataset into the pytorch dataloader structure
 
