@@ -33,6 +33,7 @@ context = {
     'sigma': 1,
     'beta': 100,
     'use_1_vs_all': True,
+    'recompute_L': True,
 
     #Auto encoder
     'use_AE': True,                                        #Use an autoencoder to generate an encoded feature space
