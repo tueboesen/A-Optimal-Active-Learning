@@ -24,12 +24,12 @@ jobs: # A basic unit of work in a run
       - run:
           command: |
             sudo pip install pipenv
-      - run:
-          command: |
-            pipenv install numpy
 #      - run:
 #          command: |
-#            pipenv install -r Pipfile
+#            pipenv install numpy
+      - run:
+          command: |
+            pipenv install -r Pipfile
       - save_cache: # cache Python dependencies using checksum of Pipfile as the cache-key
           key: deps9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
