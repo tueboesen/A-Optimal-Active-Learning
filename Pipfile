@@ -12,6 +12,7 @@ torchvision = "===0.5.0"
 scipy = "*"
 hnswlib = "*"
 matplotlib = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.8"
