@@ -48,7 +48,8 @@ def analyse_probability_matrix(U,dataset,LOG,L):
     LOG.info("------------------------------------------------------------------------------------------------")
     LOG.info("        {:>6s} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format('total',*np.sum(A[:,:],axis=0),np.sum(A)))
     LOG.info(" ")
-    LOG.info("Accuracy = {}%".format(sum(Cpred == Ctrue)/len(Ctrue)*100))
+    Accuracy = sum(Cpred == Ctrue)/len(Ctrue)*100
+    LOG.info("Accuracy = {}%".format(Accuracy))
 
     #Lets also probe the certainty of all points.
     plot_distribution_matrix(U)
@@ -59,7 +60,7 @@ def analyse_probability_matrix(U,dataset,LOG,L):
     # for i in range(U.shape[1]):
     #     UL2[:,i] = L @ Usoft[:,i]
     # plot_distribution_matrix(UL2)
-    return
+    return Accuracy
 
 def plot_distribution_matrix(v,save=None,iter=None):
     cpv = softmax(v,axis=1)
@@ -131,7 +132,8 @@ def analyse_features(U,dataset,LOG,save=None,iter=None):
     LOG.info("------------------------------------------------------------------------------------------------")
     LOG.info("        {:>6s} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format('total',*np.sum(A[:,:],axis=0),np.sum(A)))
     LOG.info(" ")
-    LOG.info("Accuracy = {}%".format(sum(Cpred == Ctrue)/len(Ctrue)*100))
+    Accuracy = sum(Cpred == Ctrue)/len(Ctrue)*100
+    LOG.info("Accuracy = {}%".format(Accuracy))
 
     #Lets also probe the certainty of all points.
     plot_distribution_matrix(U,save,iter)
@@ -162,4 +164,4 @@ def analyse_features(U,dataset,LOG,save=None,iter=None):
     if save:
         fileloc = "{}/{}_{}.png".format(save, 'histogram',iter)
         fig.savefig(fileloc)
-    return
+    return Accuracy

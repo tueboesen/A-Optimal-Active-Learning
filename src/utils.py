@@ -3,9 +3,12 @@ import random
 import numpy as np
 import torch
 import torch.nn.functional as F
-
+from src import log
 
 # Define some functions
+from src.log import close_logger
+
+
 def normalizeImage(I):
     I = I - torch.min(I)
     I = 2 * I / torch.max(I) - 1
@@ -150,6 +153,31 @@ def TV_loss(img):
 
 def determine_network_param(net):
     return sum(p.numel() for p in net.parameters() if p.requires_grad)
+
+def setup_results():
+    results = {
+    'nidxs': [],
+    'cluster_acc': [],
+    'learning_acc': [],
+    'idx_known': [],
+    }
+    return results
+
+
+def update_results(results,idx_known,cluster_acc,learning_acc):
+    results['nidxs'].append(len(idx_known))
+    results['cluster_acc'].append(cluster_acc)
+    results['learning_acc'].append(learning_acc)
+    results['idx_known'].append(idx_known)
+    return results
+
+def save_results(results,fileloc,filename):
+    file_loc = "{}/{}.txt".format(fileloc, filename)
+    with open(file_loc, 'w') as f:
+        for key, value in results.items():
+            f.write("{:30s} : {} \n".format(key, value))
+
+
 
 # def create_label_probabilities_from_dataset(dataset,MaxValue=90):
 #     '''

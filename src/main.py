@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import matplotlib.pyplot as plt
+
 from scipy.sparse import identity
 
 from src import log
@@ -18,7 +20,8 @@ from src.networks import ResidualBlock, ResNet
 from src.networks_ae import select_network
 from src.optimization import train_AE, eval_net, train
 from src.report import analyse_probability_matrix, analyse_features
-from src.utils import determine_network_param, fix_seed
+from src.utils import determine_network_param, fix_seed, update_results, save_results, setup_results
+from src.visualization import plot_results
 
 
 def main(c):
@@ -75,12 +78,17 @@ def main(c):
     # Select loss function
     loss_fnc = select_loss_fnc(c['loss_type'],c['use_label_probabilities'])
 
+    # Results_figure handler
+    fig = plt.figure(figsize=[10, 10])
+
+
     if c['use_adaptive_active_learning']:
         LOG.info('Starting adaptive active learning...')
         netAL = ResNet(**net_args)
         LOG.info('Number of parameters: {}'.format(determine_network_param(netAL)))
         optimizerAL = optim.Adam(list(netAL.parameters()), lr=c['lr'],weight_decay=1e-5)
         nc = MNIST_train.dataset.nc
+        results_AL = setup_results()
 
         # We start by randomly assigning nlabels
         MNIST_train = set_labels(c['nlabels'], MNIST_train, class_balance=True)
@@ -109,23 +117,86 @@ def main(c):
 
             #We predict the labels for all the unknown points
             y = SSL_clustering(c['alpha'], L, yobs,balance_weights=True)
-            analyse_probability_matrix(y, MNIST_train.dataset,LOG,L)
+            cluster_acc = analyse_probability_matrix(y, MNIST_train.dataset,LOG,L)
             y[list(idx_learned)] = MNIST_train.dataset.plabels[list(idx_learned)]   # We update the known plabels to their true value
             MNIST_train = set_labels(y, MNIST_train) #We save the label probabilities in y, into the dataloader
             #train a network on this data
             netAL = train(netAL, optimizerAL, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test,
                   epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
             features_netAL = eval_net(netAL, MNIST_train.dataset, device=device) #we should probably have the option of combining these with the previous features.
-            analyse_features(features_netAL, MNIST_train.dataset, LOG, save=result_dir,iter=i)
-            L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
-            L = L + 1e-3 * identity(L.shape[0])
+            learning_acc = analyse_features(features_netAL, MNIST_train.dataset, LOG, save=result_dir,iter=i)
+            if c['recompute_L']:
+                L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
+                L = L + 1e-3 * identity(L.shape[0])
+            update_results(results_AL,idx_learned,cluster_acc,learning_acc)
 
-        LOG.info("Selecting {:5d} labels".format(len(idx)))
-        if c['nlabels'] <= 0:
-            c['nlabels'] = len(idx) #We set the number of labels to match the ones from active learning
-        netAL = train(netAL, optimizerAL, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test, epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
+        save_results(results_AL, result_dir, 'results_AL')
+        plot_results(fig, results_AL, 'AL', save=result_dir)
         LOG.info('DONE WITH ADAPTIVE LEARNING!')
-        # Active learning step, designate which labels to use
+
+    if c['use_class_balanced_learning']:
+        LOG.info('Starting class balanced learning...')
+        netCB = ResNet(**net_args)
+        LOG.info('Number of parameters: {}'.format(determine_network_param(netCB)))
+        optimizerCB = optim.Adam(list(netCB.parameters()), lr=c['lr'], weight_decay=1e-5)
+        nc = MNIST_train.dataset.nc
+        results_CB = setup_results()
+        nlabels = c['nlabels_pr_epoch_pr_class']*nc
+
+        # We start by randomly assigning nlabels
+        MNIST_train = set_labels(c['nlabels'], MNIST_train, class_balance=True)
+        yobs = MNIST_train.dataset.plabels.numpy()
+        idxs = np.nonzero(yobs[:, 0])[0]
+        w = np.zeros(L.shape[0])
+        w[idxs] = 1
+        L = L + 1e-3 * identity(L.shape[0])
+        idx_learned = set(idxs)
+        for i in range(c['epochs_AL']):
+            # We use Active learning to find the next batch of data points to label
+            MNIST_train = set_labels(idx_learned, MNIST_train) #First we set MNIST_train to the old already learned labels, and make sure everything else is forgotten
+            MNIST_train = set_labels(nlabels, MNIST_train, class_balance=True, remove_all_unknown_labels=False)
+            yobs = MNIST_train.dataset.plabels.numpy()
+            idxs = np.nonzero(yobs[:, 0])[0]
+            idx_learned = set(idxs)
+
+            # We predict the labels for all the unknown points
+            y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
+            cluster_acc = analyse_probability_matrix(y, MNIST_train.dataset, LOG, L)
+            y[list(idx_learned)] = MNIST_train.dataset.plabels[list(idx_learned)]  # We update the known plabels to their true value
+            MNIST_train = set_labels(y, MNIST_train)  # We save the label probabilities in y, into the dataloader
+            # train a network on this data
+            netCB = train(netCB, optimizerCB, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test,
+                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
+            features_netCB = eval_net(netCB, MNIST_train.dataset,
+                                      device=device)  # we should probably have the option of combining these with the previous features.
+            learning_acc = analyse_features(features_netCB, MNIST_train.dataset, LOG, save=result_dir, iter=i)
+            if c['recompute_L']:
+                L, A = compute_laplacian(features_netCB, metric=c['metric'], knn=c['knn'], union=True)
+                L = L + 1e-3 * identity(L.shape[0])
+            update_results(results_CB, idx_learned, cluster_acc, learning_acc)
+            save_results(results_CB, result_dir, 'results_CB')
+
+        save_results(results_CB, result_dir, 'results_CB')
+        plot_results(fig, results_CB, 'CB', save=result_dir)
+        LOG.info('DONE WITH CLASS BALANCED LEARNING!')
+
+    # if c['use_class_balanced_learning']:
+    #     LOG.info('Starting class balanced learning')
+    #     netCB = ResNet(**net_args)
+    #     npar = sum(p.numel() for p in netCB.parameters() if p.requires_grad)
+    #     LOG.info('Number of parameters: {}'.format(npar))
+    #     optimizerCB = optim.Adam(list(netCB.parameters()), lr=c['lr'])
+    #
+    #     #We randomly select the labels we preserve.
+    #     MNIST_train = set_labels(len(idx), MNIST_train, class_balance=True)
+    #     LOG.info("Selecting {:5d} labels".format(len(idx)))
+    #     Uobs = create_uobs_from_dataset(MNIST_train.dataset)
+    #     U = SSL_clustering(c['alpha'], L, Uobs)
+    #     analyse_probability_matrix(U, MNIST_train.dataset,LOG)
+    #     netCB = train(netCB, optimizerCB, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test, epochs=c['epochs_SL'])
+    #
+
+
     #
     #
     # if c['use_active_learning']:
@@ -164,20 +235,6 @@ def main(c):
     #     analyse_probability_matrix(U, MNIST_train.dataset,LOG)
     #     netPL = train(netPL, optimizerPL, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test, epochs=c['epochs_SL'])
     #
-    # if c['use_class_balanced_learning']:
-    #     LOG.info('Starting class balanced learning')
-    #     netCB = ResNet(**net_args)
-    #     npar = sum(p.numel() for p in netCB.parameters() if p.requires_grad)
-    #     LOG.info('Number of parameters: {}'.format(npar))
-    #     optimizerCB = optim.Adam(list(netCB.parameters()), lr=c['lr'])
-    #
-    #     #We randomly select the labels we preserve.
-    #     MNIST_train = set_labels(len(idx), MNIST_train, class_balance=True)
-    #     LOG.info("Selecting {:5d} labels".format(len(idx)))
-    #     Uobs = create_uobs_from_dataset(MNIST_train.dataset)
-    #     U = SSL_clustering(c['alpha'], L, Uobs)
-    #     analyse_probability_matrix(U, MNIST_train.dataset,LOG)
-    #     netCB = train(netCB, optimizerCB, MNIST_train, loss_fnc, LOG, device=device, dataloader_validate=MNIST_test, epochs=c['epochs_SL'])
     #
     #
     #

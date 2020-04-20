@@ -98,7 +98,12 @@ def set_labels(idx,dataloader,class_balance=False,remove_all_unknown_labels=True
     if type(idx) is int:
         if class_balance:
             nidx = idx
-            idx = []
+            if not remove_all_unknown_labels:
+                known_idx = np.where(dataloader.dataset.labels != np.float32(-1))[0]
+                idx = known_idx.tolist()
+            else:
+                known_idx = np.empty(0)
+                idx = []
             #First determine how many of each label we should find:
             nc = dataloader.dataset.nc
             labels_unique = np.asarray(range(nc),dtype=np.float32)
@@ -109,9 +114,10 @@ def set_labels(idx,dataloader,class_balance=False,remove_all_unknown_labels=True
             #Now classes should sum to idx, and contain how many labels of each different class we need.
             for i,label in enumerate(labels_unique):
                 indices = np.where(dataloader.dataset.labels_true == label)[0]
-                assert len(indices) >= classes[i]
+                indices = list(set(indices).difference(set(known_idx))) #Remove known indices
+                assert len(indices) >= classes[i], "There were not enough datapoints of class {} left. Needed {} indices, but there are only {} available. Try increasing the dataset.".format(i,classes[i],len(indices))
                 np.random.shuffle(indices)
-                idx += indices[0:classes[i]].tolist()
+                idx += indices[0:classes[i]]
         else:
             nx = list(range(len(dataloader.dataset)))
             random.shuffle(nx)

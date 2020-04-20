@@ -69,3 +69,24 @@ def preview(X, Ytarget, Y):
     imshow2(Y,shift=shift, scale=scale)
 
     plt.pause(0.4)
+
+def plot_results(fh,results,legend,save=None):
+    plt.figure(fh.number)
+    plt.subplot(2,1,1)
+    plt.plot(results['nidxs'],results['cluster_acc'],'-o',label=legend)
+    plt.title('SSL Clustering  (%)')
+    plt.xlabel('known labels (#)')
+    plt.ylabel('Accuracy (%)')
+    plt.legend()
+    plt.subplot(2,1,2)
+    plt.plot(results['nidxs'],results['learning_acc'],'-o',label=legend)
+    plt.title('Learning Accuracy (%)')
+    plt.xlabel('known labels (#)')
+    plt.ylabel('Accuracy (%)')
+    plt.legend()
+    if save:
+        fileloc = "{}/{}.png".format(save, 'Results')
+        fh.savefig(fileloc)
+
+
+
