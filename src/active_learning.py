@@ -6,7 +6,7 @@ from scipy import sparse
 from scipy.sparse import identity, diags
 from scipy.sparse.linalg import cg
 
-from src.Clustering import SSL_clustering
+from src.Clustering import SSL_clustering, SSL_clustering_AL
 from src.Laplacian import compute_laplacian
 from src.dataloader import set_labels
 from src.optimization import train, eval_net
@@ -15,6 +15,13 @@ from src.utils import update_results, save_results, setup_results
 from src.visualization import plot_results
 
 def select_active_learning_method(name,c,labels):
+    '''
+    Selects the active learning method to use. Each method is defined by a class.
+    :param name: name of the method to use
+    :param c: context variable, which contains all the input parameters
+    :param labels: the true labels. These are needed by the passive learning method, when they need to decide which labels to select in a label balanced scheme.
+    :return: a callable function returns the next indices.
+    '''
     if name == 'active_learning_adaptive':
         method = Adaptive_active_learning(c['alpha'], c['sigma'], c['lr_AL'], c['nlabels_pr_class'], c['use_1_vs_all'])
     elif name == 'passive_learning':
@@ -26,6 +33,22 @@ def select_active_learning_method(name,c,labels):
     return method
 
 def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_validate,c,LOG,AL_fnc,L,device):
+    '''
+    Active learning main routine. This function assumes an adaptive active learning approach, where the known labels are adaptively probed.
+    The routine, starts by knowing c['nlabels'] equally balanced labels between all the classes.
+
+    :param net: neural net to train on the labels found
+    :param optimizer:
+    :param loss_fnc:
+    :param dataloader_train:
+    :param dataloader_validate:
+    :param c:
+    :param LOG:
+    :param AL_fnc:
+    :param L:
+    :param device:
+    :return:
+    '''
     nc = dataloader_train.dataset.nc
     results = setup_results()
 
@@ -48,6 +71,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
         # We predict the labels for all the unknown points
         y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L)
+
         y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
         dataloader_train = set_labels(y, dataloader_train)  # We save the label probabilities in y, into the dataloader
         # train a network on this data
@@ -286,8 +310,3 @@ def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     for i in range(nrhs):
         x[:,i], _ = cg(A, B[:,i], x0=x0, tol=tol, maxiter=maxiter, M=M, callback=callback, atol=atol)
     return x
-
-
-
-if __name__ == '__main__':
-    OEDA_test()
