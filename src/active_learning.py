@@ -188,7 +188,7 @@ def getOEDB(w,L,v,alpha):
     return bias,dbias
 
 
-def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True,safety_stop=20):
+def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True,safety_stop=2000):
     '''
     Finds the next ns points to learn, according to:
     min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
@@ -213,6 +213,7 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True
     else:
         v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
     LOG.info('Iter  found      f         bias         var      time(s)')
+    lr_base = lr
     nfound = 0
     i = 0
     while True:
@@ -220,6 +221,7 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True
         ind = np.argmax(np.abs(df))
         w[ind] = w[ind] - lr*df[ind]
         if ind not in idx_learned:
+            lr = lr_base
             idx_learned.add(ind)
             nfound += 1
             if nfound >= ns:
@@ -229,6 +231,8 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True
                     "{:3d}   {:3d}    {:3.2e}    {:3.2e}    {:3.2e}     {:.1f}".format(i, nfound, f, alpha ** 2 * bias,
                                                                                        sigma ** 2 * var, t1 - t0))
                 break
+        else:
+            lr = lr*1.3
         i += 1
         t1 = time.time()
         LOG.info("{:3d}   {:3d}    {:3.2e}    {:3.2e}    {:3.2e}     {:.1f}".format(i, nfound, f, alpha ** 2 * bias,

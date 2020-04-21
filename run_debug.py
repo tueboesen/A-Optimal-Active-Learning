@@ -29,7 +29,7 @@ context = {
 
     #Active learning
     'epochs_AL': 3,                                        #Iterations to use in Active learning
-    'lr_AL': 1e-5,
+    'lr_AL': 1e-3,
     'nlabels_pr_class': 2,                                  #Number of labels to learn in each iteration
     'alpha': 0.1,
     'sigma': 1,
@@ -40,7 +40,7 @@ context = {
     #Auto encoder
     'use_AE': True,                                        #Use an autoencoder to generate an encoded feature space
     'load_AE': '',#'results/autoencoders/10000_linear_10D/autoencoder.pt',
-    'epochs_AE': 3,
+    'epochs_AE': 50,
     'lr_AE': 1e-3,
     'network_AE': 'linear',                                 #Options are 'conv','linear'
     'decode_dim': 10,                                       #When network is linear this determines the dimension of the encoded space.
