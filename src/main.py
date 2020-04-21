@@ -50,7 +50,8 @@ def main(c):
     if c['use_AE']: #Do we use an Autoencoder?
         if c['load_AE']:
             LOG.info("Loading autoencoder from file: {}".format(c['load_AE']))
-            netAE,features = load_autoencoder(c['load_AE'],LOG,c['nsamples'],c['decode_dim'],c['network_AE'])
+            netAE,features = load_autoencoder(c['load_AE'],LOG,c['nsamples'],c['decode_dim'],c['network_AE'],MNIST_train,device)
+            LOG.info("Autoencoder loaded.")
         else:
             LOG.info("Setting up and training an autoencoder...")
             netAE = select_network(c['network_AE'],c['decode_dim'])
@@ -82,11 +83,6 @@ def main(c):
     # Select loss function
     loss_fnc = select_loss_fnc(c['loss_type'],c['use_label_probabilities'])
 
-    # Results_figure handler
-    fig = plt.figure(figsize=[10, 10])
-    # save_results(results_AL, c['result_dir'], 'results_AL')
-    # plot_results(fig, results_AL, 'AL', save=c['result_dir'])
-
     # Setup the result data structure
     results = []
     for method_name, method_val in c['AL_methods'].items():
@@ -95,6 +91,7 @@ def main(c):
             'nidx': [],
             'cluster_acc': [],
             'learning_acc': [],
+            'validator_acc': [],
             'idx_known': [],
         }
         results.append(res)
@@ -109,7 +106,7 @@ def main(c):
                 method_fnc = select_active_learning_method(method_name,c,MNIST_train.dataset.labels_true)
                 result, _ = run_active_learning(net, optimizer, loss_fnc, MNIST_train, MNIST_test, c, LOG, method_fnc, L, device)
                 save_results(results,result, c['result_dir'],j)
-                plot_results(fig, results, method_name, j, save=c['result_dir'])
+                plot_results(results, j, save=c['result_dir'])
                 LOG.info('Done with {}'.format(method_name))
 
 

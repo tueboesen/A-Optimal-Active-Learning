@@ -14,7 +14,7 @@ context = {
         'passive_learning_balanced': True,  # Passive learning with class balanced selection of points
     },
     #Dataset
-    'nsamples': 60000,                                        #Number of samples in dataset
+    'nsamples': 10000,                                        #Number of samples in dataset
     'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
     'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
     'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities

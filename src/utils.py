@@ -159,15 +159,17 @@ def setup_results():
     'nidx': [],
     'cluster_acc': [],
     'learning_acc': [],
+    'validator_acc': [],
     'idx_known': [],
     }
     return results
 
 
-def update_results(results,idx_known,cluster_acc,learning_acc):
+def update_results(results,idx_known,cluster_acc,learning_acc, validator_acc):
     results['nidx'].append(len(idx_known))
     results['cluster_acc'].append(cluster_acc)
     results['learning_acc'].append(learning_acc)
+    results['validator_acc'].append(validator_acc)
     results['idx_known'].append(idx_known)
     return results
 
@@ -175,6 +177,7 @@ def save_results(results,result,fileloc,j):
     results[j]['nidx'].append(result['nidx'])
     results[j]['cluster_acc'].append(result['cluster_acc'])
     results[j]['learning_acc'].append(result['learning_acc'])
+    results[j]['validator_acc'].append(result['validator_acc'])
     results[j]['idx_known'].append(result['idx_known'])
     file_loc = "{}/{}.txt".format(fileloc, results[j]['method'])
     with open(file_loc, 'w') as f:

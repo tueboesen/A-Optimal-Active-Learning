@@ -61,7 +61,7 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
                 t1 = time.time()
                 LOG.info('Epoch: {:4d}  Loss: {:6.2f}  Accuracy: {:3.2f}%  Time: {:.2f} '.format(epoch, loss_epoch, accuracy, t1-t0))
             net.train()
-    return net
+    return net, accuracy
 
 def eval_net(net,dataset,device='cpu',batchsize=501):
     '''
