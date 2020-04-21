@@ -1,9 +1,121 @@
+import random
 import time
 
 import numpy as np
 from scipy import sparse
 from scipy.sparse import identity, diags
 from scipy.sparse.linalg import cg
+
+from src.Clustering import SSL_clustering
+from src.Laplacian import compute_laplacian
+from src.dataloader import set_labels
+from src.optimization import train, eval_net
+from src.report import analyse_probability_matrix, analyse_features
+from src.utils import update_results, save_results, setup_results
+from src.visualization import plot_results
+
+def select_active_learning_method(name,c,labels):
+    if name == 'active_learning_adaptive':
+        method = Adaptive_active_learning(c['alpha'], c['sigma'], c['lr_AL'], c['nlabels_pr_class'], c['use_1_vs_all'])
+    elif name == 'passive_learning':
+        method = passive_learning_learning(labels, c['nlabels_pr_class'], class_balance=False)
+    elif name == 'passive_learning_balanced':
+        method = passive_learning_learning(labels, c['nlabels_pr_class'], class_balance=True)
+    else:
+        raise ValueError("Method has not been implemented yet")
+    return method
+
+def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_validate,c,LOG,AL_fnc,L,device):
+    nc = dataloader_train.dataset.nc
+    results = setup_results()
+
+    # We start by randomly assigning nlabels
+    dataloader_train = set_labels(c['nlabels'], dataloader_train, class_balance=True)
+    yobs = dataloader_train.dataset.plabels.numpy()
+    idxs = np.nonzero(yobs[:, 0])[0]
+    w = np.zeros(L.shape[0])
+    w[idxs] = 1
+    L = L + 1e-3 * identity(L.shape[0])
+    idx_learned = list(idxs)
+    for i in range(c['epochs_AL']):
+        # We use Active learning to find the next batch of data points to label
+        idx_learned,w = AL_fnc(idx_learned,L,yobs,w,LOG)
+
+        # With the data points found, we update the labels in our dataset
+        dataloader_train = set_labels(idx_learned, dataloader_train)
+        yobs = dataloader_train.dataset.plabels
+
+        # We predict the labels for all the unknown points
+        y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
+        cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L)
+        y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
+        dataloader_train = set_labels(y, dataloader_train)  # We save the label probabilities in y, into the dataloader
+        # train a network on this data
+        netAL = train(net, optimizer, dataloader_train, loss_fnc, LOG, device=device, dataloader_validate=dataloader_validate,
+                      epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
+        features_netAL = eval_net(netAL, dataloader_train.dataset, device=device)  # we should probably have the option of combining these with the previous features.
+        learning_acc = analyse_features(features_netAL, dataloader_train.dataset, LOG, save=c['result_dir'], iter=i)
+        if c['recompute_L']:
+            L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
+            L = L + 1e-3 * identity(L.shape[0])
+        update_results(results, idx_learned, cluster_acc, learning_acc)
+    return results, net
+
+
+
+class Adaptive_active_learning():
+    def __init__(self,alpha,sigma,lr,nlabels_pr_class,use_1_vs_all):
+        self.alpha = alpha
+        self.sigma = sigma
+        self.lr = lr
+        self.nlabels_pr_class = nlabels_pr_class
+        self.use_1_vs_all = use_1_vs_all
+        super(Adaptive_active_learning, self).__init__()
+
+    def __call__(self, idx_learned,L,yobs,w,LOG):
+        idx_learned = set(idx_learned)
+        n, nc = yobs.shape
+        # w = np.zeros(n)
+        # w[idx_learned] = 1
+        if self.use_1_vs_all:
+            yi = np.zeros((n, 1))
+            for j in range(nc):
+                yi[:, 0] = np.sign(yobs[:, j])
+                w = OEDA(w, L, yi, self.alpha, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
+                idx = np.nonzero(w)[0]
+                idx_learned.update(idx)
+        else:
+            w = OEDA(w, L, yobs, self.alpha, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
+            idx = np.nonzero(w)[0]
+            idx_learned.update(idx)
+        return list(idx_learned),w
+
+
+class passive_learning_learning():
+    def __init__(self,labels,nlabels_pr_class,class_balance=True):
+        self.nlabels_pr_class = nlabels_pr_class
+        self.labels = labels
+        self.class_balance = class_balance
+        super(passive_learning_learning, self).__init__()
+
+    def __call__(self, idx_learned,L,yobs,w,LOG):
+        n,nc = yobs.shape
+
+        labels = self.labels
+        if self.class_balance:
+            labels_unique = np.asarray(range(nc))
+            for i, label in enumerate(labels_unique):
+                indices = np.where(labels == label)[0]
+                indices = list(set(indices).difference(set(idx_learned)))  # Remove known indices
+                assert len(indices) >= self.nlabels_pr_class, "There were not enough datapoints of class {} left. Needed {} indices, but there are only {} available. Try increasing the dataset.".format(i, self.nlabels_pr_class, len(indices))
+                np.random.shuffle(indices)
+                idx_learned += indices[0:self.nlabels_pr_class]
+        else:
+            indices = list(set(range(n)).difference(set(idx_learned)))
+            random.shuffle(indices)
+            idx_learned += indices[:self.nlabels_pr_class*nc]
+        return idx_learned,w
+
 
 
 def update_laplacian(L,y,Lmax,idxs,y_truth,idxs_learned=None):

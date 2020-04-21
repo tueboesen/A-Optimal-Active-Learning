@@ -70,23 +70,40 @@ def preview(X, Ytarget, Y):
 
     plt.pause(0.4)
 
-def plot_results(fh,results,legend,save=None):
+def plot_results(fh,results,legend,groupid,save=None):
     plt.figure(fh.number)
-    plt.subplot(2,1,1)
-    plt.plot(results['nidxs'],results['cluster_acc'],'-o',label=legend)
-    plt.title('SSL Clustering  (%)')
-    plt.xlabel('known labels (#)')
-    plt.ylabel('Accuracy (%)')
-    plt.legend()
-    plt.subplot(2,1,2)
-    plt.plot(results['nidxs'],results['learning_acc'],'-o',label=legend)
-    plt.title('Learning Accuracy (%)')
-    plt.xlabel('known labels (#)')
-    plt.ylabel('Accuracy (%)')
-    plt.legend()
+    plt.clf()
+    for result in results:
+        if not result['nidx']:
+            continue
+        plt.subplot(2, 1, 1)
+        y=result['cluster_acc']
+        y_mean = np.mean(y, axis=0)
+        y_std = np.std(y, axis=0)
+
+        x = result['nidx']
+        x_mean = np.mean(x, axis=0)
+
+        h = plt.plot(x_mean, y_mean, '-o', label=result['method'],gid=groupid)
+        plt.fill_between(x_mean, y_mean - y_std, y_mean + y_std, color=h[0].get_color(), alpha=0.2, gid=groupid)
+        plt.title('SSL Clustering')
+        plt.xlabel('known labels (#)')
+        plt.ylabel('Accuracy (%)')
+        plt.legend()
+
+        plt.subplot(2,1,2)
+        y=result['learning_acc']
+        y_mean = np.mean(y, axis=0)
+        y_std = np.std(y, axis=0)
+        h = plt.plot(x_mean, y_mean, '-o', label=result['method'],gid=groupid)
+        plt.fill_between(x_mean, y_mean - y_std, y_mean + y_std, color=h[0].get_color(), alpha=0.2, gid=groupid)
+        plt.title('Machine Learning')
+        plt.xlabel('known labels (#)')
+        plt.ylabel('Accuracy (%)')
+        plt.legend()
     if save:
         fileloc = "{}/{}.png".format(save, 'Results')
         fh.savefig(fileloc)
-
+    return
 
 
