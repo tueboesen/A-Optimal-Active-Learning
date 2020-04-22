@@ -19,7 +19,9 @@ context = {
     'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
     'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
     'batch_size': 16,
+    'use_1_vs_all_dataset': 0,                              #If negative the 1_vs_all_dataset is not used, otherwise the selected number will be pitched against all other labels
     #Supervised learning
+    'use_SL': False,
     'epochs_SL': 3,                                         #Epochs for supervised learning
     'lr': 1e-2,
     'loss_type': 'MSE',                                     #Options are MSE and CE
@@ -40,7 +42,7 @@ context = {
     #Auto encoder
     'use_AE': True,                                        #Use an autoencoder to generate an encoded feature space
     'load_AE': '',#'results/autoencoders/10000_linear_10D/autoencoder.pt',
-    'epochs_AE': 50,
+    'epochs_AE': 0,
     'lr_AE': 1e-3,
     'network_AE': 'linear',                                 #Options are 'conv','linear'
     'decode_dim': 10,                                       #When network is linear this determines the dimension of the encoded space.
