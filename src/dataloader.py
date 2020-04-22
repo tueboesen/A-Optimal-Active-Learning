@@ -16,7 +16,7 @@ class Dataset_preload_with_label_prob(Dataset):
     This is of course slower than just loading one of the two, but should not be that much slower.
     zero_center_label_probabilities: makes the label probabilities obey the constraint ye=0, where y is the label probabilities.
     '''
-    def __init__(self, dataset, device='cpu', nsamples=-1,order_data=False,zero_center_label_probabilities=True):
+    def __init__(self, dataset, device='cpu', nsamples=-1,order_data=False,zero_center_label_probabilities=True,use_1_vs_all=-1):
         imgs = []
         self.labels = []
         self.device = device
@@ -33,6 +33,14 @@ class Dataset_preload_with_label_prob(Dataset):
             self.imgs = self.imgs[idxs,:]
             self.labels = list(np.asarray(self.labels)[idxs])
         n = len(self.labels)
+        if use_1_vs_all >= 0:
+            ls = use_1_vs_all
+            assert (ls in set(np.unique(self.labels))), "the label you have selected for use_1_vs_all_dataset is not a valid label. You selected {}, but the labels are {}".format(ls,set(np.unique(self.labels)))
+            idxs = np.where(self.labels == np.float32(ls))[0]
+            self.labels[:] = [1]*n
+            for idx in idxs:
+                self.labels[idx] = 0
+
         nc = len(np.unique(self.labels))
         self.nc = nc
         self.labels_true = copy.deepcopy(self.labels)
@@ -52,7 +60,7 @@ class Dataset_preload_with_label_prob(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,download=True):
+def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,download=True,use_1_vs_all=-1):
     '''
     Loads MNIST dataset into the pytorch dataloader structure
 
@@ -72,7 +80,7 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,downl
     MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=download)
     MNISTtestset = torchvision.datasets.MNIST(root='../data', train=False, transform=trans)
 
-    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data)
+    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data,use_1_vs_all=use_1_vs_all)
     MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,device=device)
 
     MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,

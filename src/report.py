@@ -20,39 +20,36 @@ def analyse_probability_matrix(U,dataset,LOG,L):
     classes = np.asarray(range(nc))
     Ctrue = dataset.labels_true
     Cselect = [num for num in dataset.labels if num >= 0]
-    nselect = np.bincount(Cselect,minlength=10)
+    nselect = np.bincount(Cselect,minlength=nc)
     A = np.zeros((nc,nc),dtype=int)
+    labels_unique = np.unique(Ctrue)
     for i in classes: #pred class
         Ctrue_i = np.asarray(Ctrue)[Cpred == i]
         for j in classes: #true class
             A[i,j] = sum(Ctrue_i == j)
 
-    LOG.info("Labels selected:")
-    LOG.info("Class       : {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:>8s}".format(0,1,2,3,4,5,6,7,8,9,'total'))
-    LOG.info("selected (#): {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(*nselect,np.sum(nselect)))
-    LOG.info("selected (%): {:6.2f} {:6.2f} {:6.2f} {:6.2f} {:6.2f} {:6.2f} {:6.2f} {:6.2f} {:6.2f} {:6.2f}".format(*nselect/sum(nselect)*100))
+    with np.printoptions(formatter={'all':lambda x: "{:6d}".format(x)}):
+        LOG.info("Labels selected:")
+        LOG.info("Class       : {} {:>8s}".format(labels_unique,'total'))
+        LOG.info("selected (#): {} {:8d}".format(nselect,np.sum(nselect)))
+    with np.printoptions(formatter={'all':lambda x: "{:6.2f}".format(x)}):
+        LOG.info("selected (%): {}".format(nselect/sum(nselect)*100))
     LOG.info(" ")
     LOG.info("Based on labels selected, the clustering predicted:")
-    LOG.info("Predicted \\ True {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:>8s}".format(0,1,2,3,4,5,6,7,8,9,'total'))
-    LOG.info("------------------------------------------------------------------------------------------------")
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(0,*A[0,:],np.sum(A[0,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(1,*A[1,:],np.sum(A[1,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(2,*A[2,:],np.sum(A[2,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(3,*A[3,:],np.sum(A[3,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(4,*A[4,:],np.sum(A[4,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(5,*A[5,:],np.sum(A[5,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(6,*A[6,:],np.sum(A[6,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(7,*A[7,:],np.sum(A[7,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(8,*A[8,:],np.sum(A[8,:])))
-    LOG.info("        {:6d} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format(9,*A[9,:],np.sum(A[9,:])))
-    LOG.info("------------------------------------------------------------------------------------------------")
-    LOG.info("        {:>6s} | {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} {:6d} |{:8d}".format('total',*np.sum(A[:,:],axis=0),np.sum(A)))
-    LOG.info(" ")
+    with np.printoptions(formatter={'all':lambda x: "{:6d}".format(x)}):
+        LOG.info("Predicted \\ True {}  {:>8s}".format(labels_unique,'total'))
+        LOG.info("------------------------------------------------------------------------------------------------")
+        for i in labels_unique:
+            LOG.info("        {}        {} {:8d}".format(i,A[i,:],np.sum(A[i,:])))
+        LOG.info("------------------------------------------------------------------------------------------------")
+        LOG.info("     {:>6s}      {} {:8d}".format('total',np.sum(A[:,:],axis=0),np.sum(A)))
+        LOG.info(" ")
     Accuracy = sum(Cpred == Ctrue)/len(Ctrue)*100
     LOG.info("Accuracy = {}%".format(Accuracy))
 
     #Lets also probe the certainty of all points.
     plot_distribution_matrix(U)
+
 
     # #Lets look at L*U
     # Usoft = softmax(U,axis=1)

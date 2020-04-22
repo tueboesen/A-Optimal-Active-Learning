@@ -45,7 +45,7 @@ def main(c):
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
     # Load Dataset
-    MNIST_train, MNIST_test = Load_MNIST(batch_size=c['batch_size'],nsamples=c['nsamples'],device=device,order_data=c['order_dataset'])
+    MNIST_train, MNIST_test = Load_MNIST(batch_size=c['batch_size'],nsamples=c['nsamples'],device=device,order_data=c['order_dataset'],use_1_vs_all=c['use_1_vs_all_dataset'])
 
     if c['use_AE']: #Do we use an Autoencoder?
         if c['load_AE']:

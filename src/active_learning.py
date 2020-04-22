@@ -69,19 +69,24 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
         yobs = dataloader_train.dataset.plabels
 
         # We predict the labels for all the unknown points
-        y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
+        # y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
+        y = SSL_clustering_AL(c['alpha'], L, yobs, w)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L)
 
-        y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
-        dataloader_train = set_labels(y, dataloader_train)  # We save the label probabilities in y, into the dataloader
-        # train a network on this data
-        netAL, validator_acc = train(net, optimizer, dataloader_train, loss_fnc, LOG, device=device, dataloader_validate=dataloader_validate,
-                      epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
-        features_netAL = eval_net(netAL, dataloader_train.dataset, device=device)  # we should probably have the option of combining these with the previous features.
-        learning_acc = analyse_features(features_netAL, dataloader_train.dataset, LOG, save=c['result_dir'], iter=i)
-        if c['recompute_L']:
-            L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
-            L = L + 1e-3 * identity(L.shape[0])
+        if c['use_SL']:
+            y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
+            dataloader_train = set_labels(y, dataloader_train)  # We save the label probabilities in y, into the dataloader
+            # train a network on this data
+            netAL, validator_acc = train(net, optimizer, dataloader_train, loss_fnc, LOG, device=device, dataloader_validate=dataloader_validate,
+                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
+            features_netAL = eval_net(netAL, dataloader_train.dataset, device=device)  # we should probably have the option of combining these with the previous features.
+            learning_acc = analyse_features(features_netAL, dataloader_train.dataset, LOG, save=c['result_dir'], iter=i)
+            if c['recompute_L']:
+                L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
+                L = L + 1e-3 * identity(L.shape[0])
+        else:
+            learning_acc = 0
+            validator_acc = 0
         update_results(results, idx_learned, cluster_acc, learning_acc, validator_acc)
     return results, net
 
