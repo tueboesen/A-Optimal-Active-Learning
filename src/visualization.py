@@ -53,22 +53,87 @@ def findimageshift(*imgs):
 
 
 
-def preview(X, Ytarget, Y):
-    shift, scale = findimageshift(X, Ytarget, Y)
-    plt.figure(figsize=[10, 8]);
-    plt.subplot(1, 3, 1);
-    plt.title('Input')
-    imshow2(X, shift=shift, scale=scale)
+def preview(dataloader,save=None):
+    if dataloader.dataset.name == 'circles':
+        xy = (dataloader.dataset.imgs).numpy()
+        labels = dataloader.dataset.labels
+        labels_unique = np.unique(labels)
+        fig = plt.figure(figsize=[10, 10])
+        for label in labels_unique:
+            idx = np.where(labels == np.float32(label))[0]
+            if label == -1:
+                plt.plot(xy[idx, 0], xy[idx, 1], color='gray', marker='o', linestyle="None")
+            else:
+                plt.plot(xy[idx,0],xy[idx,1],'o')
+        plt.title('True classes')
+        if save:
+            fig.savefig(save)
+            plt.close(fig.number)
+    return
 
-    plt.subplot(1, 3, 2);
-    plt.title('Target')
-    imshow2(Ytarget,shift=shift, scale=scale)
 
-    plt.subplot(1, 3, 3);
-    plt.title('Output')
-    imshow2(Y,shift=shift, scale=scale)
+def vizualize_circles(U,dataset,saveprefix=None,iter=None):
+    xy = (dataset.imgs).numpy()
+    labels = dataset.labels
+    plabels = U
+    plabels = plabels - np.min(plabels,axis=1)[:,None]
+    psum = np.sum(plabels,axis=1)
+    idx = np.where(psum != np.float32((0)))
+    plabels[idx] = plabels[idx]/psum[idx,None]
+    nc = dataset.nc
+    fig = plt.figure(figsize=[10, 10])
+    plt.scatter(xy[:,0], xy[:,1], c=plabels, alpha=0.5)
+    idx = np.where(labels != np.float32(-1))[0]
+    plt.scatter(xy[idx,0], xy[idx,1], c=plabels[idx,:],marker='x', s=100)
+    if saveprefix:
+        save = "{}_{}_{}.png".format(saveprefix, iter,'cluster')
+        fig.savefig(save)
+        plt.close(fig.number)
+    return
 
-    plt.pause(0.4)
+
+
+def debug_circles(xy,df,idx_known,y,dbias,dvar,ind):
+    def plot_and_color(xy,y,title):
+        n = y.shape[0]
+        if y.ndim == 2:
+            if y.shape[1] == 3:
+                y = y - np.min(y, axis=1)[:, None]
+                ysum = np.sum(y, axis=1)
+                idx = np.where(ysum != np.float32((0)))
+                y[idx] = y[idx] / ysum[idx, None]
+                plt.scatter(xy[:, 0], xy[:, 1], c=y)
+        else:
+            ym = np.max(np.abs(y))
+            yn = y / ym
+            rgba_colors = np.zeros((n, 4))
+            rgba_colors[yn > 0, 0] = 1
+            rgba_colors[:, 3] = np.abs(yn)
+            plt.scatter(xy[:,0], xy[:,1], c=rgba_colors)
+            idx=np.argsort(np.abs(y),)[::-1]
+            plt.scatter(xy[idx[0:5],0], xy[idx[0:5],1], marker='d', s=100)
+        plt.scatter(xy[list(idx_known),0], xy[list(idx_known),1], marker='x', s=100)
+        plt.title(title)
+
+    fig = plt.figure(3,figsize=[10, 10])
+    plt.clf()
+    plt.subplot(2,2,1)
+    plot_and_color(xy,df,'df visualized')
+    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
+    plt.subplot(2,2,2)
+    y = np.squeeze(y)
+    plot_and_color(xy,y,'labels visualized')
+    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
+    plt.subplot(2,2,3)
+    plot_and_color(xy,dbias,'bias visualized')
+    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
+    plt.subplot(2,2,4)
+    plot_and_color(xy,dvar,'variance visualized')
+    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
+    # plt.show()
+    plt.pause(0.1)
+    return
+
 
 def plot_results(results,groupid,save=None):
     fig_c = plt.figure(figsize=[10, 10])

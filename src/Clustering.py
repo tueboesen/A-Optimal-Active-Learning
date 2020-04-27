@@ -80,7 +80,64 @@ def SSL_clustering_AL(alpha, L, Yobs, w):
     U = np.empty_like(Yobs)
     for i in range(nc):
         U[:,i], _ = cg(A, b[:,i], M=M,tol=TOL,maxiter=MAXITER)
+    # C = convert_pseudo_to_prob(U,use_softmax=True)
+    # p = np.random.rand(n)
+    # Ccumsum = np.cumsum(C,axis=1)
+    # labels = np.zeros(n,dtype=int)
+    # for i in range(nc-1):
+    #     idx = np.where(Ccumsum[:,i] < p)[0]
+    #     labels[idx] = i+1
+    # #Lets ensure that the known labels have the right value.
+    # idx_known = np.nonzero(w)[0]
+    # C_obs = np.argmax(Yobs,axis=1)
+    # labels[idx_known] = C_obs[idx_known]
+    # U2 = np.zeros_like(U)
+    # U2[np.arange(U2.shape[0]),labels] = 1
     return U
+
+
+def SSL_clustering_sq(alpha, L, Yobs, w):
+    '''
+    Minimizes the objective function:
+    U = arg min_Y 1/2 ||Y - Yobs||_W^2 + alpha/2 * Y'*L*Y
+    s.t. Ye = 0
+    which has the closed form solution:
+    U = (W + alpha*L)^-1 W * Yobs * C
+    :param alpha: hyperparameter
+    :param L: Graph Laplacian
+    :param Yobs: labelled data
+    :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
+    :return:
+    '''
+    TOL = 1e-6;
+    MAXITER = 2000;
+    if isinstance(Yobs, torch.Tensor):
+        Yobs = Yobs.numpy()
+    n,nc = Yobs.shape
+    W = diags(w)
+    A = (alpha *L.T @ L + W)
+    b = W @ Yobs
+    def precond(x):
+        return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
+    M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
+    U = np.empty_like(Yobs)
+    for i in range(nc):
+        U[:,i], _ = cg(A, b[:,i], M=M,tol=TOL,maxiter=MAXITER)
+    # C = convert_pseudo_to_prob(U,use_softmax=True)
+    # p = np.random.rand(n)
+    # Ccumsum = np.cumsum(C,axis=1)
+    # labels = np.zeros(n,dtype=int)
+    # for i in range(nc-1):
+    #     idx = np.where(Ccumsum[:,i] < p)[0]
+    #     labels[idx] = i+1
+    # #Lets ensure that the known labels have the right value.
+    # idx_known = np.nonzero(w)[0]
+    # C_obs = np.argmax(Yobs,axis=1)
+    # labels[idx_known] = C_obs[idx_known]
+    # U2 = np.zeros_like(U)
+    # U2[np.arange(U2.shape[0]),labels] = 1
+    return U
+
 
 
 def convert_pseudo_to_prob(v,use_softmax=False):
@@ -93,7 +150,8 @@ def convert_pseudo_to_prob(v,use_softmax=False):
     if use_softmax:
         cpv = softmax(v,axis=1)
     else:
-        maxval = np.sum(np.abs(v), axis=1)
-        vshifted = v - np.min(v,axis=1)[:,None]
-        cpv = vshifted / (maxval[:,None]+1e-10)
+        vsum = np.sum(np.abs(v), axis=1)
+        cpv = v - np.min(v,axis=1)[:,None]
+        idx = np.where(vsum != np.float32((0)))
+        cpv[idx] = cpv[idx] / (vsum[idx,None])
     return cpv

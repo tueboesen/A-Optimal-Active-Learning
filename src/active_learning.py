@@ -1,18 +1,19 @@
 import random
 import time
-
+import copy
 import numpy as np
 from scipy import sparse
 from scipy.sparse import identity, diags
 from scipy.sparse.linalg import cg
 
-from src.Clustering import SSL_clustering, SSL_clustering_AL
+from src.Clustering import SSL_clustering, SSL_clustering_AL, SSL_clustering_sq
 from src.Laplacian import compute_laplacian
 from src.dataloader import set_labels
 from src.optimization import train, eval_net
 from src.report import analyse_probability_matrix, analyse_features
 from src.utils import update_results, save_results, setup_results
-from src.visualization import plot_results
+from src.visualization import plot_results, preview, debug_circles
+
 
 def select_active_learning_method(name,c,labels):
     '''
@@ -23,7 +24,7 @@ def select_active_learning_method(name,c,labels):
     :return: a callable function returns the next indices.
     '''
     if name == 'active_learning_adaptive':
-        method = Adaptive_active_learning(c['alpha'], c['sigma'], c['lr_AL'], c['nlabels_pr_class'], c['use_1_vs_all'])
+        method = Adaptive_active_learning(c['alpha'], c['beta'], c['sigma'], c['lr_AL'], c['nlabels_pr_class'], c['use_1_vs_all'])
     elif name == 'passive_learning':
         method = passive_learning_learning(labels, c['nlabels_pr_class'], class_balance=False)
     elif name == 'passive_learning_balanced':
@@ -32,7 +33,7 @@ def select_active_learning_method(name,c,labels):
         raise ValueError("Method has not been implemented yet")
     return method
 
-def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_validate,c,LOG,AL_fnc,L,device):
+def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_validate,c,LOG,AL_fnc,L,device,saveprefix=None):
     '''
     Active learning main routine. This function assumes an adaptive active learning approach, where the known labels are adaptively probed.
     The routine, starts by knowing c['nlabels'] equally balanced labels between all the classes.
@@ -54,15 +55,16 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
 
     # We start by randomly assigning nlabels
     dataloader_train = set_labels(c['nlabels'], dataloader_train, class_balance=True)
-    yobs = dataloader_train.dataset.plabels.numpy()
-    idxs = np.nonzero(yobs[:, 0])[0]
+    preview(dataloader_train,save="{}_{}.png".format(saveprefix, 'Initial_labels'))
+    y = dataloader_train.dataset.plabels.numpy()
+    idxs = np.nonzero(y[:, 0])[0]
     w = np.zeros(L.shape[0])
-    w[idxs] = 1
+    w[idxs] = 1e6
     L = L + 1e-3 * identity(L.shape[0])
     idx_learned = list(idxs)
     for i in range(c['epochs_AL']):
         # We use Active learning to find the next batch of data points to label
-        idx_learned,w = AL_fnc(idx_learned,L,yobs,w,LOG)
+        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,(dataloader_train.dataset.imgs).numpy())
 
         # With the data points found, we update the labels in our dataset
         dataloader_train = set_labels(idx_learned, dataloader_train)
@@ -70,8 +72,8 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
 
         # We predict the labels for all the unknown points
         # y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
-        y = SSL_clustering_AL(c['alpha'], L, yobs, w)
-        cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L)
+        y = SSL_clustering_sq(c['alpha'], L, yobs, w)
+        cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
         if c['use_SL']:
             y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
@@ -93,15 +95,17 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
 
 
 class Adaptive_active_learning():
-    def __init__(self,alpha,sigma,lr,nlabels_pr_class,use_1_vs_all):
+    def __init__(self,alpha,beta,sigma,lr,nlabels_pr_class,use_1_vs_all,debug=False):
         self.alpha = alpha
         self.sigma = sigma
+        self.beta = beta
         self.lr = lr
         self.nlabels_pr_class = nlabels_pr_class
         self.use_1_vs_all = use_1_vs_all
+        self.debug = debug
         super(Adaptive_active_learning, self).__init__()
 
-    def __call__(self, idx_learned,L,yobs,w,LOG):
+    def __call__(self, idx_learned,L,yobs,w,LOG,xy):
         idx_learned = set(idx_learned)
         n, nc = yobs.shape
         # w = np.zeros(n)
@@ -109,14 +113,24 @@ class Adaptive_active_learning():
         if self.use_1_vs_all:
             yi = np.zeros((n, 1))
             for j in range(nc):
-                yi[:, 0] = np.sign(yobs[:, j])
-                w = OEDA(w, L, yi, self.alpha, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
+                yi[:, 0] = yobs[:, j]
+                t0 = time.time()
+                yi = SSL_clustering_sq(self.alpha, L, yi,w)
+                t1 = time.time()
+                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy,debug=self.debug)
+                t2 = time.time()
                 idx = np.nonzero(w)[0]
                 idx_learned.update(idx)
+                print("Clustering {:2.2f}, OEDA {:2.2f}".format(t1 - t0, t2 - t1))
         else:
-            w = OEDA(w, L, yobs, self.alpha, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
+            t0 = time.time()
+            yobs = SSL_clustering_sq(self.alpha, L, yobs, w)
+            t1 = time.time()
+            w = OEDA_v2(w, L, yobs, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy,debug=self.debug)
+            t2 = time.time()
             idx = np.nonzero(w)[0]
             idx_learned.update(idx)
+            print("Clustering {:2.2f}, OEDA {:2.2f}".format(t1-t0,t2-t1))
         return list(idx_learned),w
 
 
@@ -127,8 +141,9 @@ class passive_learning_learning():
         self.class_balance = class_balance
         super(passive_learning_learning, self).__init__()
 
-    def __call__(self, idx_learned,L,yobs,w,LOG):
+    def __call__(self, idx_learned,L,yobs,w,LOG,*args):
         n,nc = yobs.shape
+        wbase = w[list(idx_learned)[0]]
 
         labels = self.labels
         if self.class_balance:
@@ -143,6 +158,7 @@ class passive_learning_learning():
             indices = list(set(range(n)).difference(set(idx_learned)))
             random.shuffle(indices)
             idx_learned += indices[:self.nlabels_pr_class*nc]
+        w[list(idx_learned)] = wbase
         return idx_learned,w
 
 
@@ -217,7 +233,7 @@ def getOEDB(w,L,v,alpha):
     return bias,dbias
 
 
-def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True,safety_stop=2000):
+def OEDA(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_approximate=True,safety_stop=2000,debug=False):
     '''
     Finds the next ns points to learn, according to:
     min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
@@ -245,9 +261,37 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True
     lr_base = lr
     nfound = 0
     i = 0
+    lrw = lr_base
+    dirw = np.zeros_like(w)
     while True:
-        f,df,bias,_,var,_ = getOEDA(w,L,y,alpha,sigma,v)
+        f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,sigma,v,beta)
         ind = np.argmax(np.abs(df))
+        bias_pp2 = np.sum(np.abs(bias_pp),axis=1)
+        debug_circles(xy, df, idx_learned, y, dbias, bias_pp2,ind)
+        # redo=False
+        # for idx in idx_learned:
+        #     if np.abs(df[idx]) > 0.1*np.abs(df[ind]):
+        #         ite = 0
+        #         while True:
+        #             wtry = copy.deepcopy(w)
+        #             wtry[idx] =  w[idx] - lrw * df[idx]
+        #             if wtry[idx] <=0:
+        #                 print("How did we get here?")
+        #             ftry, _, _, _, _, _,_,_ = getOEDA(wtry, L, y, alpha, sigma, v,beta)
+        #             if ftry <= f:
+        #                 w[idx] = wtry[idx]
+        #                 if ite == 0:
+        #                     lrw *= 1.3
+        #                 break
+        #             else:
+        #                 lrw *= 0.5
+        #                 ite += 1
+        #             LOG.info("{:3d}-{:2d}   {:3d}    {:3.2e}    {:3.2e}    {:3.2e} ".format(i,ite, nfound, f, ftry, lrw ))
+        #         redo=True
+        # if redo:
+        #     LOG.info("{:3d}   {:3d}    {:3.2e}    {:3.2e}    {:3.2e} ".format(i, nfound, f, alpha ** 2 * bias,
+        #                                                                                 sigma ** 2 * var))
+        #     continue
         w[ind] = w[ind] - lr*df[ind]
         if ind not in idx_learned:
             lr = lr_base
@@ -270,7 +314,47 @@ def OEDA(w,L,y,alpha,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True
             break
     return w
 
-def getOEDA(w,L,y,alpha,sigma,v):
+def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
+    '''
+    Finds the next ns points to learn, according to:
+    min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
+    s.t. 0<= w
+    :param w: the weight of the points already learned
+    :param L: Graph Laplacian
+    :param y: Labels (The code can handle y being a probability vector, but it doesn't lead to good results so far)
+    :param alpha: hyperparameter
+    :param sigma: hyperparameter - strength of variance term
+    :param lr: learning rate
+    :param ns: Number of points to learn
+    :param idx_learned: Indices of points already learned, will be iteratively updated as new points are found.
+    :param use_stochastic_approximate: If true it uses a vector of +-1 to stochasticically approximate the inverse matrices.
+    :param safety_stop: This function risk running for a very long time trying to find all the ns samples required, and could even be stuck in an infinite loop if all samples have been learned. This sets the maximum number of iteration to run.
+    :return: w with the new indices included
+    '''
+    t0 = time.time()
+    if ns <= 0:
+        return w
+    if use_stochastic_approximate:
+        v = np.sign(np.random.normal(0,1,(y.shape[0],1)))
+    else:
+        v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
+    f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
+    indices = np.argsort(np.abs(df))[::-1]
+    # debug_circles(xy,df,idx_learned,y,dbias,dvar,indices[0])
+    i = 0
+    for idx in indices:
+        if idx not in idx_learned:
+            i += 1
+            idx_learned.add(idx)
+            if i >= ns:
+                break
+    w[list(idx_learned)] = 1e6
+    return w
+
+
+
+
+def getOEDA(w,L,y,alpha,beta,sigma,v):
     '''
     Computes the value and derivatives of:
     f(w) =  \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
@@ -284,18 +368,20 @@ def getOEDA(w,L,y,alpha,sigma,v):
     :return:
     '''
     W = diags(w)
-    H = L + alpha * W
+    H = L.T @ L + alpha * W
     bias = cgmatrix(H, L @ y)
     biasSq = np.trace(bias.T @ bias)
     Q = cgmatrix(H, W @ v)
     var = np.trace(Q.T @ Q)
-    f = alpha**2 * biasSq + sigma**2 * var
+    cost = np.sum(w)
+    f = alpha**2 * biasSq + sigma**2 * var + beta * cost
     tmp = cgmatrix(H, bias)
     dbiasSq = - 2 * np.sum(bias * tmp,axis=1)
     tmp = cgmatrix(H, Q)
-    dvar = 2 * np.sum((v-Q)*tmp,axis=1)
-    df = alpha**2 * dbiasSq + sigma**2 * dvar
-    return f,df,biasSq,dbiasSq,var,dvar
+    dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
+    dcost = beta
+    df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
+    return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
 
 def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     '''
@@ -310,8 +396,12 @@ def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     :param atol:
     :return:
     '''
-    nrhs = B.shape[1]
-    x = np.zeros_like(B)
+    n,nrhs = B.shape
+    x = np.zeros(B.shape)
     for i in range(nrhs):
-        x[:,i], _ = cg(A, B[:,i], x0=x0, tol=tol, maxiter=maxiter, M=M, callback=callback, atol=atol)
+        if sparse.issparse(B):
+            b = B[:,i].todense()
+        else:
+            b = B[:,i]
+        x[:,i], _ = cg(A, b, x0=x0, tol=tol, maxiter=maxiter, M=M, callback=callback, atol=atol)
     return x

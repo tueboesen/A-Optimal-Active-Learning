@@ -4,8 +4,10 @@ import numpy as np
 import torch
 from scipy.special import softmax
 
+from src.visualization import vizualize_circles
 
-def analyse_probability_matrix(U,dataset,LOG,L):
+
+def analyse_probability_matrix(U,dataset,LOG,L,saveprefix=None,iter=None):
     '''
     Analyses a probability matrix U
     :param U: probability matrx (nsamples,nclasses)
@@ -50,7 +52,8 @@ def analyse_probability_matrix(U,dataset,LOG,L):
     #Lets also probe the certainty of all points.
     plot_distribution_matrix(U)
 
-
+    if dataset.name == 'circles':
+        vizualize_circles(U,dataset, saveprefix=saveprefix,iter=iter)
     # #Lets look at L*U
     # Usoft = softmax(U,axis=1)
     # UL2 = np.zeros_like(U)

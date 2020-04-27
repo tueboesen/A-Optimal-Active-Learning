@@ -32,7 +32,7 @@ def ANN_hnsw(x, k=10, euclidian_metric=False, union=True, eff=None,cutoff=False)
         p = hnswlib.Index(space='cosine', dim=dim)  # possible options are l2, cosine or ip
 
     # Initing index - the maximum number of elements should be known beforehand
-    p.init_index(max_elements=nsamples, ef_construction=eff, M=200)
+    p.init_index(max_elements=nsamples, ef_construction=eff, M=500)
 
     # Element insertion (can be called several times):
     p.add_items(data, data_labels)
