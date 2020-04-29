@@ -6,7 +6,7 @@ from scipy import sparse
 from scipy.sparse import identity, diags
 from scipy.sparse.linalg import cg
 
-from src.Clustering import SSL_clustering, SSL_clustering_AL, SSL_clustering_sq
+from src.Clustering import SSL_clustering, SSL_clustering_AL, SSL_clustering_sq, SSL_clustering_1vsall
 from src.Laplacian import compute_laplacian
 from src.dataloader import set_labels
 from src.optimization import train, eval_net
@@ -15,7 +15,7 @@ from src.utils import update_results, save_results, setup_results
 from src.visualization import plot_results, preview, debug_circles
 
 
-def select_active_learning_method(name,c,labels):
+def select_active_learning_method(name,c,dataset):
     '''
     Selects the active learning method to use. Each method is defined by a class.
     :param name: name of the method to use
@@ -24,11 +24,11 @@ def select_active_learning_method(name,c,labels):
     :return: a callable function returns the next indices.
     '''
     if name == 'active_learning_adaptive':
-        method = Adaptive_active_learning(c['alpha'], c['beta'], c['sigma'], c['lr_AL'], c['nlabels_pr_class'], c['use_1_vs_all'])
+        method = Adaptive_active_learning(c['alpha'], c['beta'], c['sigma'], c['lr_AL'], c['nlabels_pr_class'], c['use_1_vs_all'],dataset.plabels_true)
     elif name == 'passive_learning':
-        method = passive_learning_learning(labels, c['nlabels_pr_class'], class_balance=False)
+        method = passive_learning_learning(dataset.labels_true, c['nlabels_pr_class'], class_balance=False)
     elif name == 'passive_learning_balanced':
-        method = passive_learning_learning(labels, c['nlabels_pr_class'], class_balance=True)
+        method = passive_learning_learning(dataset.labels_true, c['nlabels_pr_class'], class_balance=True)
     else:
         raise ValueError("Method has not been implemented yet")
     return method
@@ -61,10 +61,11 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     w = np.zeros(L.shape[0])
     w[idxs] = 1e6
     L = L + 1e-3 * identity(L.shape[0])
+    L = L.T @ L
     idx_learned = list(idxs)
     for i in range(c['epochs_AL']):
         # We use Active learning to find the next batch of data points to label
-        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,(dataloader_train.dataset.imgs).numpy())
+        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,(dataloader_train.dataset.imgs).numpy(),"{}{}".format(saveprefix,i))
 
         # With the data points found, we update the labels in our dataset
         dataloader_train = set_labels(idx_learned, dataloader_train)
@@ -72,8 +73,10 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
 
         # We predict the labels for all the unknown points
         # y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
-        y = SSL_clustering_sq(c['alpha'], L, yobs, w)
+        y = SSL_clustering_AL(c['alpha'], L, yobs, w)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
+        # y = SSL_clustering_1vsall(c['alpha'], L, yobs, w)
+        # cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
         if c['use_SL']:
             y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
@@ -85,7 +88,8 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
             learning_acc = analyse_features(features_netAL, dataloader_train.dataset, LOG, save=c['result_dir'], iter=i)
             if c['recompute_L']:
                 L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
-                L = L + 1e-3 * identity(L.shape[0])
+                L = L + 1e-2 * identity(L.shape[0])
+                L = L.T @ L
         else:
             learning_acc = 0
             validator_acc = 0
@@ -95,17 +99,18 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
 
 
 class Adaptive_active_learning():
-    def __init__(self,alpha,beta,sigma,lr,nlabels_pr_class,use_1_vs_all,debug=False):
+    def __init__(self,alpha,beta,sigma,lr,nlabels_pr_class,use_1_vs_all,plabels,debug=False):
         self.alpha = alpha
         self.sigma = sigma
         self.beta = beta
         self.lr = lr
+        self.plabels = plabels
         self.nlabels_pr_class = nlabels_pr_class
         self.use_1_vs_all = use_1_vs_all
         self.debug = debug
         super(Adaptive_active_learning, self).__init__()
 
-    def __call__(self, idx_learned,L,yobs,w,LOG,xy):
+    def __call__(self, idx_learned,L,yobs,w,LOG,xy,saveprefix):
         idx_learned = set(idx_learned)
         n, nc = yobs.shape
         # w = np.zeros(n)
@@ -115,18 +120,20 @@ class Adaptive_active_learning():
             for j in range(nc):
                 yi[:, 0] = yobs[:, j]
                 t0 = time.time()
-                yi = SSL_clustering_sq(self.alpha, L, yi,w)
+                yi = SSL_clustering_AL(self.alpha, L, yi,w)
                 t1 = time.time()
-                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy,debug=self.debug)
+                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy,saveprefix="{}_{}".format(saveprefix,j))
                 t2 = time.time()
                 idx = np.nonzero(w)[0]
+                yobs[idx,:] = self.plabels[idx,:]
                 idx_learned.update(idx)
+
                 print("Clustering {:2.2f}, OEDA {:2.2f}".format(t1 - t0, t2 - t1))
         else:
             t0 = time.time()
-            yobs = SSL_clustering_sq(self.alpha, L, yobs, w)
+            yobs = SSL_clustering_AL(self.alpha, L, yobs, w)
             t1 = time.time()
-            w = OEDA_v2(w, L, yobs, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy,debug=self.debug)
+            w = OEDA_v2(w, L, yobs, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy)
             t2 = time.time()
             idx = np.nonzero(w)[0]
             idx_learned.update(idx)
@@ -184,6 +191,110 @@ def update_laplacian(L,y,Lmax,idxs,y_truth,idxs_learned=None):
             L[idxj, idxj] = L[idxj, idxj] + L[idxj, idx]
             L[idxj, idx] = 0
     return L,y,idxs_learned
+
+def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
+    '''
+    Finds the next ns points to learn, according to:
+    min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
+    s.t. 0<= w
+    :param w: the weight of the points already learned
+    :param L: Graph Laplacian
+    :param y: Labels (The code can handle y being a probability vector, but it doesn't lead to good results so far)
+    :param alpha: hyperparameter
+    :param sigma: hyperparameter - strength of variance term
+    :param lr: learning rate
+    :param ns: Number of points to learn
+    :param idx_learned: Indices of points already learned, will be iteratively updated as new points are found.
+    :param use_stochastic_approximate: If true it uses a vector of +-1 to stochasticically approximate the inverse matrices.
+    :param safety_stop: This function risk running for a very long time trying to find all the ns samples required, and could even be stuck in an infinite loop if all samples have been learned. This sets the maximum number of iteration to run.
+    :return: w with the new indices included
+    '''
+    t0 = time.time()
+    if ns <= 0:
+        return w
+    if use_stochastic_approximate:
+        v = np.sign(np.random.normal(0,1,(y.shape[0],1)))
+    else:
+        v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
+    f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
+    indices = np.argsort(np.abs(df))[::-1]
+    # debug_circles(xy,df,idx_learned,y,dbias,np.squeeze(bias_pp))
+    i = 0
+    idx_learned_in = copy.deepcopy(idx_learned)
+    idx_excluded = []
+    idx_new = set()
+    for idx in indices:
+        if idx not in (idx_learned and idx_excluded):
+            i += 1
+            idx_learned.add(idx)
+            idx_new.add(idx)
+            if i >= ns:
+                break
+            else:
+                # Remove all neighbouring points from the potential candidates
+                aa = L.nonzero()
+                tmp = np.where(aa[0] == idx)[0]
+                idxs = aa[1][tmp]
+                idx_excluded += idxs.tolist()
+    w[list(idx_learned)] = 1e6
+    debug_circles(xy,df,idx_learned_in,y,idx_new,saveprefix)
+    return w
+
+
+
+
+def getOEDA(w,L,y,alpha,beta,sigma,v):
+    '''
+    Computes the value and derivatives of:
+    f(w) =  \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
+    with bias = ||H^{-1} L y ||^2  and variance =  \Trace (W H^{-2} W)
+    :param w: the weight of the points already learned
+    :param L: Graph Laplacian
+    :param y: Labels (The code can handle y being a probability vector, but it doesn't lead to good results so far)
+    :param alpha: hyperparameter
+    :param sigma: hyperparameter - strength of variance term
+    :param v: can be either a vector or a matrix, if it is a random vector +-1 the matrix inverse will be stochastically approximated, if it is an identity matrix the inverse will be exact (but much slower)
+    :return:
+    '''
+    W = diags(w)
+    H = L.T @ L + alpha * W
+    bias = cgmatrix(H, L @ y)
+    biasSq = np.trace(bias.T @ bias)
+    Q = cgmatrix(H, W @ v)
+    var = np.trace(Q.T @ Q)
+    cost = np.sum(w)
+    f = alpha**2 * biasSq + sigma**2 * var + beta * cost
+    tmp = cgmatrix(H, bias)
+    dbiasSq = - 2 * np.sum(bias * tmp,axis=1)
+    tmp = cgmatrix(H, Q)
+    dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
+    dcost = beta
+    df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
+    return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
+
+def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
+    '''
+    Computes the conjugate gradient solution to Ax=B, where B is a Matrix
+    :param A:
+    :param B:
+    :param tol:
+    :param maxiter:
+    :param M:
+    :param x0:
+    :param callback:
+    :param atol:
+    :return:
+    '''
+    n,nrhs = B.shape
+    x = np.zeros(B.shape)
+    for i in range(nrhs):
+        if sparse.issparse(B):
+            b = B[:,i].todense()
+        else:
+            b = B[:,i]
+        x[:,i], _ = cg(A, b, x0=x0, tol=tol, maxiter=maxiter, M=M, callback=callback, atol=atol)
+    return x
+
 
 def OEDB(w,L,alpha,beta,lr,maxIter=200,Ifix=[]):
     #we seek the w that minimizes the following objective:
@@ -313,95 +424,3 @@ def OEDA(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_approxim
         if i>=safety_stop:
             break
     return w
-
-def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
-    '''
-    Finds the next ns points to learn, according to:
-    min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
-    s.t. 0<= w
-    :param w: the weight of the points already learned
-    :param L: Graph Laplacian
-    :param y: Labels (The code can handle y being a probability vector, but it doesn't lead to good results so far)
-    :param alpha: hyperparameter
-    :param sigma: hyperparameter - strength of variance term
-    :param lr: learning rate
-    :param ns: Number of points to learn
-    :param idx_learned: Indices of points already learned, will be iteratively updated as new points are found.
-    :param use_stochastic_approximate: If true it uses a vector of +-1 to stochasticically approximate the inverse matrices.
-    :param safety_stop: This function risk running for a very long time trying to find all the ns samples required, and could even be stuck in an infinite loop if all samples have been learned. This sets the maximum number of iteration to run.
-    :return: w with the new indices included
-    '''
-    t0 = time.time()
-    if ns <= 0:
-        return w
-    if use_stochastic_approximate:
-        v = np.sign(np.random.normal(0,1,(y.shape[0],1)))
-    else:
-        v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
-    f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
-    indices = np.argsort(np.abs(df))[::-1]
-    # debug_circles(xy,df,idx_learned,y,dbias,dvar,indices[0])
-    i = 0
-    for idx in indices:
-        if idx not in idx_learned:
-            i += 1
-            idx_learned.add(idx)
-            if i >= ns:
-                break
-    w[list(idx_learned)] = 1e6
-    return w
-
-
-
-
-def getOEDA(w,L,y,alpha,beta,sigma,v):
-    '''
-    Computes the value and derivatives of:
-    f(w) =  \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
-    with bias = ||H^{-1} L y ||^2  and variance =  \Trace (W H^{-2} W)
-    :param w: the weight of the points already learned
-    :param L: Graph Laplacian
-    :param y: Labels (The code can handle y being a probability vector, but it doesn't lead to good results so far)
-    :param alpha: hyperparameter
-    :param sigma: hyperparameter - strength of variance term
-    :param v: can be either a vector or a matrix, if it is a random vector +-1 the matrix inverse will be stochastically approximated, if it is an identity matrix the inverse will be exact (but much slower)
-    :return:
-    '''
-    W = diags(w)
-    H = L.T @ L + alpha * W
-    bias = cgmatrix(H, L @ y)
-    biasSq = np.trace(bias.T @ bias)
-    Q = cgmatrix(H, W @ v)
-    var = np.trace(Q.T @ Q)
-    cost = np.sum(w)
-    f = alpha**2 * biasSq + sigma**2 * var + beta * cost
-    tmp = cgmatrix(H, bias)
-    dbiasSq = - 2 * np.sum(bias * tmp,axis=1)
-    tmp = cgmatrix(H, Q)
-    dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
-    dcost = beta
-    df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
-    return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
-
-def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
-    '''
-    Computes the conjugate gradient solution to Ax=B, where B is a Matrix
-    :param A:
-    :param B:
-    :param tol:
-    :param maxiter:
-    :param M:
-    :param x0:
-    :param callback:
-    :param atol:
-    :return:
-    '''
-    n,nrhs = B.shape
-    x = np.zeros(B.shape)
-    for i in range(nrhs):
-        if sparse.issparse(B):
-            b = B[:,i].todense()
-        else:
-            b = B[:,i]
-        x[:,i], _ = cg(A, b, x0=x0, tol=tol, maxiter=maxiter, M=M, callback=callback, atol=atol)
-    return x

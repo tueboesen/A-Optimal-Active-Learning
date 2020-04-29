@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib
-matplotlib.use('Agg') #Agg for nonvizual
+matplotlib.use('Agg') #TkAgg for vizual
 from matplotlib import pyplot as plt
 
 from scipy.sparse import identity
@@ -106,7 +106,7 @@ def main(c):
                 net = ResNet(**net_args)
                 LOG.info('Number of parameters: {}'.format(determine_network_param(net)))
                 optimizer = optim.Adam(list(net.parameters()), lr=c['lr'],weight_decay=1e-5)
-                method_fnc = select_active_learning_method(method_name,c,dl_train.dataset.labels_true)
+                method_fnc = select_active_learning_method(method_name,c,dl_train.dataset)
                 result, _ = run_active_learning(net, optimizer, loss_fnc, dl_train, dl_test, c, LOG, method_fnc, L, device,saveprefix="{}/{}_{}_".format(c['result_dir'], i,method_name))
                 save_results(results,result, c['result_dir'],j)
                 plot_results(results, j, save=c['result_dir'])

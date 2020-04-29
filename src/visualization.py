@@ -93,7 +93,7 @@ def vizualize_circles(U,dataset,saveprefix=None,iter=None):
 
 
 
-def debug_circles(xy,df,idx_known,y,dbias,dvar,ind):
+def debug_circles(xy,df,idx_known,y,idx_new,saveprefix=None):
     def plot_and_color(xy,y,title):
         n = y.shape[0]
         if y.ndim == 2:
@@ -108,30 +108,29 @@ def debug_circles(xy,df,idx_known,y,dbias,dvar,ind):
             yn = y / ym
             rgba_colors = np.zeros((n, 4))
             rgba_colors[yn > 0, 0] = 1
-            rgba_colors[:, 3] = np.abs(yn)
+            rgba_colors[:, 3] = np.abs(yn) #THIS IS WHY IT IS ALPHA
             plt.scatter(xy[:,0], xy[:,1], c=rgba_colors)
-            idx=np.argsort(np.abs(y),)[::-1]
-            plt.scatter(xy[idx[0:5],0], xy[idx[0:5],1], marker='d', s=100)
-        plt.scatter(xy[list(idx_known),0], xy[list(idx_known),1], marker='x', s=100)
-        plt.title(title)
+            # idx=np.argsort(np.abs(y),)[::-1]
+            # plt.scatter(xy[idx[0:5],0], xy[idx[0:5],1], marker='d', s=100)
+            # rgba_colors = np.zeros((n, 3))
+            # idx = y > 0
+            # rgba_colors[idx, 0] = y[idx]/np.max(y)
+            # idx = y < 0
+            # rgba_colors[idx, 1] = y[idx]/np.min(y)
 
-    fig = plt.figure(3,figsize=[10, 10])
+    fig = plt.figure(3,figsize=[20, 10])
     plt.clf()
-    plt.subplot(2,2,1)
+    plt.subplot(1,2,1)
     plot_and_color(xy,df,'df visualized')
-    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
-    plt.subplot(2,2,2)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=150)
+    plt.subplot(1,2,2)
     y = np.squeeze(y)
     plot_and_color(xy,y,'labels visualized')
-    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
-    plt.subplot(2,2,3)
-    plot_and_color(xy,dbias,'bias visualized')
-    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
-    plt.subplot(2,2,4)
-    plot_and_color(xy,dvar,'variance visualized')
-    plt.scatter(xy[ind,0],xy[ind,1],marker='+',s=150)
-    # plt.show()
-    plt.pause(0.1)
+    # plt.pause(1)
+    if saveprefix:
+        save = "{}_{}.png".format(saveprefix, 'AL')
+        fig.savefig(save)
+        plt.close(fig.number)
     return
 
 

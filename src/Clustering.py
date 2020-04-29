@@ -95,6 +95,39 @@ def SSL_clustering_AL(alpha, L, Yobs, w):
     # U2[np.arange(U2.shape[0]),labels] = 1
     return U
 
+def SSL_clustering_1vsall(alpha, L, Yobs, w):
+    '''
+    Minimizes the objective function:
+    U = arg min_Y 1/2 ||Y - Yobs||_W^2 + alpha/2 * Y'*L*Y
+    s.t. Ye = 0
+    which has the closed form solution:
+    U = (W + alpha*L)^-1 W * Yobs * C
+    :param alpha: hyperparameter
+    :param L: Graph Laplacian
+    :param Yobs: labelled data
+    :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
+    :return:
+    '''
+    TOL = 1e-12;
+    MAXITER = 2000;
+    if isinstance(Yobs, torch.Tensor):
+        Yobs = Yobs.numpy()
+    n,nc = Yobs.shape
+    W = diags(w)
+    A = (alpha * L + W)
+    def precond(x):
+        return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
+    M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
+    yi = np.zeros((n, 1))
+    U = np.empty_like(Yobs)
+    for j in range(nc):
+        yi[:, 0] = Yobs[:, j]
+        b = W @ yi
+        U[:,j], _ = cg(A, b, M=M,tol=TOL,maxiter=MAXITER)
+    return U
+
+
+
 
 def SSL_clustering_sq(alpha, L, Yobs, w):
     '''

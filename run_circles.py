@@ -31,13 +31,13 @@ context = {
     'knn': 10,  # Number of nearest neighbours
 
     #Active learning
-    'epochs_AL': 50,                                        #Iterations to use in Active learning
+    'epochs_AL': 2,                                        #Iterations to use in Active learning
     'lr_AL': 1e-3,
-    'nlabels_pr_class': 1,                                  #Number of labels to learn in each iteration
+    'nlabels_pr_class': 3,                                  #Number of labels to learn in each iteration
     'alpha': 1,
     'sigma': 0,
     'beta': 0,
-    'use_1_vs_all': False,
+    'use_1_vs_all': True,
     'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.
 
     #Auto encoder
