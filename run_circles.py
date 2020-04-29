@@ -28,12 +28,12 @@ context = {
     'loss_type': 'MSE',                                     #Options are MSE and CE
     # Grap Laplacian
     'metric': 'l2',  # 'l2' or 'cosine'
-    'knn': 10,  # Number of nearest neighbours
+    'knn': 40,  # Number of nearest neighbours
 
     #Active learning
-    'epochs_AL': 2,                                        #Iterations to use in Active learning
+    'epochs_AL': 20,                                        #Iterations to use in Active learning
     'lr_AL': 1e-3,
-    'nlabels_pr_class': 3,                                  #Number of labels to learn in each iteration
+    'nlabels_pr_class': 1,                                  #Number of labels to learn in each iteration
     'alpha': 1,
     'sigma': 0,
     'beta': 0,

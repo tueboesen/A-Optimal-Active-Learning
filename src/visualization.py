@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 import torchvision
 import numpy as np
@@ -84,7 +86,8 @@ def vizualize_circles(U,dataset,saveprefix=None,iter=None):
     fig = plt.figure(figsize=[10, 10])
     plt.scatter(xy[:,0], xy[:,1], c=plabels, alpha=0.5)
     idx = np.where(labels != np.float32(-1))[0]
-    plt.scatter(xy[idx,0], xy[idx,1], c=plabels[idx,:],marker='x', s=100)
+    plt.scatter(xy[idx,0], xy[idx,1], c='black',marker='x', s=100)
+    # plt.scatter(xy[idx,0], xy[idx,1], c=plabels[idx,:],marker='x', s=100)
     if saveprefix:
         save = "{}_{}_{}.png".format(saveprefix, iter,'cluster')
         fig.savefig(save)
@@ -93,7 +96,7 @@ def vizualize_circles(U,dataset,saveprefix=None,iter=None):
 
 
 
-def debug_circles(xy,df,idx_known,y,idx_new,saveprefix=None):
+def debug_circles(xy,y,df,dbias,dvar,idx_known,idx_new,saveprefix=None):
     def plot_and_color(xy,y,title):
         n = y.shape[0]
         if y.ndim == 2:
@@ -108,27 +111,65 @@ def debug_circles(xy,df,idx_known,y,idx_new,saveprefix=None):
             yn = y / ym
             rgba_colors = np.zeros((n, 4))
             rgba_colors[yn > 0, 0] = 1
-            rgba_colors[:, 3] = np.abs(yn) #THIS IS WHY IT IS ALPHA
+            rgba_colors[:, 3] = np.abs(yn)
             plt.scatter(xy[:,0], xy[:,1], c=rgba_colors)
-            # idx=np.argsort(np.abs(y),)[::-1]
-            # plt.scatter(xy[idx[0:5],0], xy[idx[0:5],1], marker='d', s=100)
-            # rgba_colors = np.zeros((n, 3))
-            # idx = y > 0
-            # rgba_colors[idx, 0] = y[idx]/np.max(y)
-            # idx = y < 0
-            # rgba_colors[idx, 1] = y[idx]/np.min(y)
-
+            plt.title(title)
     fig = plt.figure(3,figsize=[20, 10])
     plt.clf()
-    plt.subplot(1,2,1)
-    plot_and_color(xy,df,'df visualized')
-    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=150)
-    plt.subplot(1,2,2)
+    plt.subplot(2,2,1)
     y = np.squeeze(y)
     plot_and_color(xy,y,'labels visualized')
-    # plt.pause(1)
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
+    plt.subplot(2,2,2)
+    plot_and_color(xy,np.abs(df),'abs(df) visualized')
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
+    plt.subplot(2, 2, 3)
+    plot_and_color(xy,dbias,'dbias visualized')
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
+    plt.subplot(2, 2, 4)
+    plot_and_color(xy,dvar,'dvar visualized')
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
     if saveprefix:
-        save = "{}_{}.png".format(saveprefix, 'AL')
+        root_dir = os.path.dirname(saveprefix)
+        file_prefix = os.path.basename(saveprefix)
+        fig_dir = "{res_dir}/figures/".format(res_dir=root_dir)
+        paper_figures = "{fig_dir}/paper/".format(fig_dir=fig_dir)
+        os.makedirs(paper_figures,exist_ok=True)
+        save = "{}{}.png".format(fig_dir,file_prefix, 'AL')
+        fig.savefig(save)
+        plt.close(fig.number)
+
+        #Save each figure individually
+        fig = plt.figure(3, figsize=[20, 10])
+        y = np.squeeze(y)
+        plot_and_color(xy, y, 'labels visualized')
+        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
+        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
+        save = "{}{}_{}.png".format(paper_figures,file_prefix, 'labels')
+        fig.savefig(save)
+        plt.clf()
+
+        plot_and_color(xy, np.abs(df), 'abs(df) visualized')
+        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
+        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
+        save = "{}{}_{}.png".format(paper_figures,file_prefix, 'df')
+        fig.savefig(save)
+        plt.clf()
+
+        plot_and_color(xy, dbias, 'dbias visualized')
+        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
+        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
+        save = "{}{}_{}.png".format(paper_figures,file_prefix, 'dbias')
+        fig.savefig(save)
+        plt.clf()
+        plot_and_color(xy, dvar, 'dvar visualized')
+        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
+        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
+        save = "{}{}_{}.png".format(paper_figures,file_prefix, 'dvar')
         fig.savefig(save)
         plt.close(fig.number)
     return
@@ -136,6 +177,8 @@ def debug_circles(xy,df,idx_known,y,idx_new,saveprefix=None):
 
 def plot_results(results,groupid,save=None):
     fig_c = plt.figure(figsize=[10, 10])
+    fig_c2 = plt.figure(figsize=[10, 10])
+
     fig_l = plt.figure(figsize=[10, 10])
     fig_v = plt.figure(figsize=[10, 10])
     plt.clf()
@@ -179,10 +222,25 @@ def plot_results(results,groupid,save=None):
         plt.legend()
 
 
+        plt.figure(fig_c2.number)
+        y = 100 - np.asarray(result['cluster_acc'])
+
+        y_mean = np.mean(y, axis=0)
+
+        h = plt.semilogy(x_mean, y_mean, '-o', label=result['method'],gid=groupid)
+        plt.title('SSL Clustering on train data')
+        plt.xlabel('known labels (#)')
+        plt.ylabel('Error (%)')
+        plt.legend()
+
+
     if save:
         fileloc = "{}/{}.png".format(save, 'Results_clustering')
         fig_c.savefig(fileloc)
         plt.close(fig_c.number)
+        fileloc = "{}/{}.png".format(save, 'Error_clustering')
+        fig_c2.savefig(fileloc)
+        plt.close(fig_c2.number)
         fileloc = "{}/{}.png".format(save, 'Results_network_train')
         fig_l.savefig(fileloc)
         plt.close(fig_l.number)

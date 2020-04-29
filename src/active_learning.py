@@ -59,7 +59,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     y = dataloader_train.dataset.plabels.numpy()
     idxs = np.nonzero(y[:, 0])[0]
     w = np.zeros(L.shape[0])
-    w[idxs] = 1e6
+    w[idxs] = 1e7
     L = L + 1e-3 * identity(L.shape[0])
     L = L.T @ L
     idx_learned = list(idxs)
@@ -119,6 +119,7 @@ class Adaptive_active_learning():
             yi = np.zeros((n, 1))
             for j in range(nc):
                 yi[:, 0] = yobs[:, j]
+                yi = np.sign(yi)
                 t0 = time.time()
                 yi = SSL_clustering_AL(self.alpha, L, yi,w)
                 t1 = time.time()
@@ -218,7 +219,6 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_appro
         v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
     f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
     indices = np.argsort(np.abs(df))[::-1]
-    # debug_circles(xy,df,idx_learned,y,dbias,np.squeeze(bias_pp))
     i = 0
     idx_learned_in = copy.deepcopy(idx_learned)
     idx_excluded = []
@@ -236,8 +236,11 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_appro
                 tmp = np.where(aa[0] == idx)[0]
                 idxs = aa[1][tmp]
                 idx_excluded += idxs.tolist()
-    w[list(idx_learned)] = 1e6
-    debug_circles(xy,df,idx_learned_in,y,idx_new,saveprefix)
+    w[list(idx_learned)] = 1e7
+    t1 = time.time()
+    debug_circles(xy,y,df,dbias,dvar,idx_learned_in,idx_new,saveprefix)
+    t2 = time.time()
+    # print("GetOEDA {:2.2f}, viz {:2.2f}".format(t1-t0,t2-t1))
     return w
 
 
@@ -256,23 +259,31 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     :param v: can be either a vector or a matrix, if it is a random vector +-1 the matrix inverse will be stochastically approximated, if it is an identity matrix the inverse will be exact (but much slower)
     :return:
     '''
+    t0 = time.time()
     W = diags(w)
     H = L.T @ L + alpha * W
+    t1 = time.time()
     bias = cgmatrix(H, L @ y)
+    t2 = time.time()
     biasSq = np.trace(bias.T @ bias)
+    t3 = time.time()
     Q = cgmatrix(H, W @ v)
     var = np.trace(Q.T @ Q)
+    t4 = time.time()
     cost = np.sum(w)
     f = alpha**2 * biasSq + sigma**2 * var + beta * cost
     tmp = cgmatrix(H, bias)
     dbiasSq = - 2 * np.sum(bias * tmp,axis=1)
+    t5 = time.time()
     tmp = cgmatrix(H, Q)
     dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
     dcost = beta
     df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
+    t6 = time.time()
+    # print("#1={:2.2f},#2={:2.2f},#3={:2.2f},#4={:2.2f},#5={:2.2f},#6={:2.2f}".format(t1-t0,t2-t1,t3-t2,t4-t3,t5-t4,t6-t5))
     return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
 
-def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
+def cgmatrix(A,B,tol=1e-04,maxiter=None,M=None,x0=None,callback=None,atol=None):
     '''
     Computes the conjugate gradient solution to Ax=B, where B is a Matrix
     :param A:

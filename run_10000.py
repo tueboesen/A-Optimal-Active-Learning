@@ -41,7 +41,7 @@ context = {
     'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.
 
     #Auto encoder
-    'use_AE': True,                                        #Use an autoencoder to generate an encoded feature space
+    'use_AE': False,                                        #Use an autoencoder to generate an encoded feature space
     'load_AE': 'results/autoencoder/autoencoder.pt',
     'epochs_AE': 100,
     'lr_AE': 1e-3,

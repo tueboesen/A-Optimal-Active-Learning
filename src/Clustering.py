@@ -66,7 +66,7 @@ def SSL_clustering_AL(alpha, L, Yobs, w):
     :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
     :return:
     '''
-    TOL = 1e-12;
+    TOL = 1e-8;
     MAXITER = 2000;
     if isinstance(Yobs, torch.Tensor):
         Yobs = Yobs.numpy()
