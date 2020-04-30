@@ -218,6 +218,7 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_appro
     else:
         v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
     f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
+    LOG.info("f = {:2.2e}, bias = {:2.2e}, var = {:2.2e}".format(f, alpha**2 * bias, sigma**2 * var))
     indices = np.argsort(np.abs(df))[::-1]
     i = 0
     idx_learned_in = copy.deepcopy(idx_learned)

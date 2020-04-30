@@ -5,7 +5,7 @@ from src.main import main
 context = {
     'seed': 123557,                                         #Seed for reproduceability
     'basename': os.path.basename(__file__).split(".")[0],   #Names the folder after this filename
-    'nrepeats': 3,                                          #Sets how many times the code should be repeated
+    'nrepeats': 10,                                          #Sets how many times the code should be repeated
     #Determines which type of learning to test:
     'AL_methods': {
         'active_learning_bayesian': False,  # Bayesian active learning
@@ -28,14 +28,14 @@ context = {
     'loss_type': 'MSE',                                     #Options are MSE and CE
     # Grap Laplacian
     'metric': 'l2',  # 'l2' or 'cosine'
-    'knn': 40,  # Number of nearest neighbours
+    'knn': 20,  # Number of nearest neighbours
 
     #Active learning
-    'epochs_AL': 20,                                        #Iterations to use in Active learning
+    'epochs_AL': 50,                                        #Iterations to use in Active learning
     'lr_AL': 1e-3,
-    'nlabels_pr_class': 1,                                  #Number of labels to learn in each iteration
+    'nlabels_pr_class': 2,                                  #Number of labels to learn in each iteration
     'alpha': 1,
-    'sigma': 0,
+    'sigma': 1e-4,
     'beta': 0,
     'use_1_vs_all': True,
     'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.
