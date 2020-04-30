@@ -3,10 +3,12 @@ import time
 import copy
 import numpy as np
 from scipy import sparse
-from scipy.sparse import identity, diags
-from scipy.sparse.linalg import cg
+from scipy.sparse import identity, triu, tril, diags
+from scipy.sparse.linalg import spsolve, cg, LinearOperator
 
-from src.Clustering import SSL_clustering, SSL_clustering_AL, SSL_clustering_sq, SSL_clustering_1vsall
+
+from src.Clustering import SSL_clustering, SSL_clustering_AL, SSL_clustering_sq, SSL_clustering_1vsall, \
+    convert_pseudo_to_prob
 from src.Laplacian import compute_laplacian
 from src.dataloader import set_labels
 from src.optimization import train, eval_net
@@ -57,15 +59,15 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     dataloader_train = set_labels(c['nlabels'], dataloader_train, class_balance=True)
     preview(dataloader_train,save="{}_{}.png".format(saveprefix, 'Initial_labels'))
     y = dataloader_train.dataset.plabels.numpy()
-    idxs = np.nonzero(y[:, 0])[0]
+    idxs = np.nonzero(y[:,0])[0]
     w = np.zeros(L.shape[0])
     w[idxs] = 1e6
-    L = L + 1e-3 * identity(L.shape[0])
+    L = L + 1e-2 * identity(L.shape[0])
     L = L.T @ L
     idx_learned = list(idxs)
     for i in range(c['epochs_AL']):
         # We use Active learning to find the next batch of data points to label
-        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,(dataloader_train.dataset.imgs).numpy(),"{}{}".format(saveprefix,i))
+        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG)
 
         # With the data points found, we update the labels in our dataset
         dataloader_train = set_labels(idx_learned, dataloader_train)
@@ -73,13 +75,15 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
 
         # We predict the labels for all the unknown points
         # y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
-        y = SSL_clustering_AL(c['alpha'], L, yobs, w)
-        cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
-        # y = SSL_clustering_1vsall(c['alpha'], L, yobs, w)
+        # y = SSL_clustering_AL(c['alpha'], L, yobs, w)
         # cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
+        y = SSL_clustering_1vsall(c['alpha'], L, yobs, w)
+        cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
         if c['use_SL']:
             y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
+            # Next we convert these pseudo-probabilities to actual probabilities
+            # y = convert_pseudo_to_prob(y,use_softmax=True)
             dataloader_train = set_labels(y, dataloader_train)  # We save the label probabilities in y, into the dataloader
             # train a network on this data
             netAL, validator_acc = train(net, optimizer, dataloader_train, loss_fnc, LOG, device=device, dataloader_validate=dataloader_validate,
@@ -110,34 +114,26 @@ class Adaptive_active_learning():
         self.debug = debug
         super(Adaptive_active_learning, self).__init__()
 
-    def __call__(self, idx_learned,L,yobs,w,LOG,xy,saveprefix):
+    def __call__(self, idx_learned,L,yobs,w,LOG):
         idx_learned = set(idx_learned)
         n, nc = yobs.shape
-        # w = np.zeros(n)
-        # w[idx_learned] = 1
         if self.use_1_vs_all:
             yi = np.zeros((n, 1))
             for j in range(nc):
                 yi[:, 0] = yobs[:, j]
+                yi = np.sign(yi)
+
                 t0 = time.time()
                 yi = SSL_clustering_AL(self.alpha, L, yi,w)
                 t1 = time.time()
-                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy,saveprefix="{}_{}".format(saveprefix,j))
+                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
                 t2 = time.time()
                 idx = np.nonzero(w)[0]
                 yobs[idx,:] = self.plabels[idx,:]
                 idx_learned.update(idx)
-
                 print("Clustering {:2.2f}, OEDA {:2.2f}".format(t1 - t0, t2 - t1))
         else:
-            t0 = time.time()
-            yobs = SSL_clustering_AL(self.alpha, L, yobs, w)
-            t1 = time.time()
-            w = OEDA_v2(w, L, yobs, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,xy)
-            t2 = time.time()
-            idx = np.nonzero(w)[0]
-            idx_learned.update(idx)
-            print("Clustering {:2.2f}, OEDA {:2.2f}".format(t1-t0,t2-t1))
+            raise ValueError("This should not happen")
         return list(idx_learned),w
 
 
@@ -192,7 +188,7 @@ def update_laplacian(L,y,Lmax,idxs,y_truth,idxs_learned=None):
             L[idxj, idx] = 0
     return L,y,idxs_learned
 
-def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
+def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
     '''
     Finds the next ns points to learn, according to:
     min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
@@ -218,7 +214,6 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_appro
         v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
     f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
     indices = np.argsort(np.abs(df))[::-1]
-    # debug_circles(xy,df,idx_learned,y,dbias,np.squeeze(bias_pp))
     i = 0
     idx_learned_in = copy.deepcopy(idx_learned)
     idx_excluded = []
@@ -237,7 +232,6 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,xy,use_stochastic_appro
                 idxs = aa[1][tmp]
                 idx_excluded += idxs.tolist()
     w[list(idx_learned)] = 1e6
-    debug_circles(xy,df,idx_learned_in,y,idx_new,saveprefix)
     return w
 
 
@@ -256,19 +250,29 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     :param v: can be either a vector or a matrix, if it is a random vector +-1 the matrix inverse will be stochastically approximated, if it is an identity matrix the inverse will be exact (but much slower)
     :return:
     '''
+
     W = diags(w)
     H = L.T @ L + alpha * W
     bias = cgmatrix(H, L @ y)
     biasSq = np.trace(bias.T @ bias)
-    Q = cgmatrix(H, W @ v)
-    var = np.trace(Q.T @ Q)
-    cost = np.sum(w)
-    f = alpha**2 * biasSq + sigma**2 * var + beta * cost
     tmp = cgmatrix(H, bias)
     dbiasSq = - 2 * np.sum(bias * tmp,axis=1)
-    tmp = cgmatrix(H, Q)
-    dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
-    dcost = beta
+
+    if sigma > 0:
+        Q = cgmatrix(H, W @ v)
+        var = np.trace(Q.T @ Q)
+        tmp = cgmatrix(H, Q)
+        dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
+    else:
+        var = 0
+        dvar = np.zeros_like(dbiasSq)
+    if beta > 0:
+        cost = np.sum(w)
+        dcost = beta
+    else:
+        cost = 0
+        dcost = 0
+    f = alpha**2 * biasSq + sigma**2 * var + beta * cost
     df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
     return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
 
@@ -286,6 +290,9 @@ def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     :return:
     '''
     n,nrhs = B.shape
+    # def precond(x):
+    #     return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
+    # M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
     x = np.zeros(B.shape)
     for i in range(nrhs):
         if sparse.issparse(B):

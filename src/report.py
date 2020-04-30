@@ -2,6 +2,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import copy
 from scipy.special import softmax
 
 from src.visualization import vizualize_circles
@@ -25,6 +26,20 @@ def analyse_probability_matrix(U,dataset,LOG,L,saveprefix=None,iter=None):
     nselect = np.bincount(Cselect,minlength=nc)
     A = np.zeros((nc,nc),dtype=int)
     labels_unique = np.unique(Ctrue)
+
+    #Lets take a quick look at each class individually and see how we did:
+    n = len(Ctrue)
+    for i in range(nc):
+        Ctrue_binary = - np.ones(n)
+        idx = np.where(Ctrue == np.float32(i))[0]
+        Ctrue_binary[idx] = 1
+        ui = U[:,i]
+        uip = copy.deepcopy(ui)
+        uip[ui > 0] = 1
+        uip[ui <= 0 ] = -1
+        r = np.sum(np.abs(uip-Ctrue_binary)) / (2*n)
+        LOG.info("Class {}, Error {:2.2f}% ".format(i,r*100))
+
     for i in classes: #pred class
         Ctrue_i = np.asarray(Ctrue)[Cpred == i]
         for j in classes: #true class

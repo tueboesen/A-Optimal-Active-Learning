@@ -56,10 +56,13 @@ class Dataset_preload_with_label_prob(Dataset):
         nc = len(np.unique(self.labels))
         self.nc = nc
         self.labels_true = copy.deepcopy(self.labels)
-        plabels = torch.zeros(n,nc)
-        plabels[torch.arange(plabels.shape[0]),self.labels] = 10
         if zero_center_label_probabilities:
+            plabels = torch.zeros(n, nc)
+            plabels[torch.arange(plabels.shape[0]),self.labels] = 10
             plabels = plabels - torch.mean(plabels,dim=1)[:,None]
+        else:
+            plabels = -torch.ones(n, nc)
+            plabels[torch.arange(plabels.shape[0]), self.labels] = 1
         self.plabels = plabels
         self.plabels_true = copy.deepcopy(self.plabels)
 
@@ -92,8 +95,8 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,downl
     MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=download)
     MNISTtestset = torchvision.datasets.MNIST(root='../data', train=False, transform=trans)
 
-    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data,use_1_vs_all=use_1_vs_all,name='mnist')
-    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,device=device,name='mnist')
+    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data,use_1_vs_all=use_1_vs_all,name='mnist',zero_center_label_probabilities=False)
+    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,device=device,name='mnist',zero_center_label_probabilities=False)
 
     MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,
                                               shuffle=True, num_workers=0)

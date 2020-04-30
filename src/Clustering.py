@@ -120,8 +120,14 @@ def SSL_clustering_1vsall(alpha, L, Yobs, w):
     M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
     yi = np.zeros((n, 1))
     U = np.empty_like(Yobs)
+    # idx_learned = Yobs[:].nonzero()[0]
     for j in range(nc):
         yi[:, 0] = Yobs[:, j]
+        yi = np.sign(yi)
+        # yi[idx_learned] = -1
+        # idx = Yobs[:, j].nonzero()[0]
+        # yi[idx] = 1
+
         b = W @ yi
         U[:,j], _ = cg(A, b, M=M,tol=TOL,maxiter=MAXITER)
     return U

@@ -37,7 +37,7 @@ class ResNet(nn.Module):
     '''
     This is a relatively simple resnet, that by default zeros the mean of the output, meaning that the label probabilities returned fullfil the constraint ye=0
     '''
-    def __init__(self, block, layers, num_classes=10, zero_center=True):
+    def __init__(self, block, layers, num_classes=10, zero_center=False):
         super(ResNet, self).__init__()
         self.in_channels = 16
         self.zero_center = zero_center
