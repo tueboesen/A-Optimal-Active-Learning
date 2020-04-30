@@ -61,7 +61,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     y = dataloader_train.dataset.plabels.numpy()
     idxs = np.nonzero(y[:,0])[0]
     w = np.zeros(L.shape[0])
-    w[idxs] = 1e6
+    w[idxs] = 1e7
     L = L + 1e-2 * identity(L.shape[0])
     L = L.T @ L
     idx_learned = list(idxs)
@@ -80,7 +80,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
         y = SSL_clustering_1vsall(c['alpha'], L, yobs, w)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
-        if c['use_SL']:
+        if c['use_SL'] and (cluster_acc > 90):
             y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
             # Next we convert these pseudo-probabilities to actual probabilities
             # y = convert_pseudo_to_prob(y,use_softmax=True)
@@ -215,7 +215,6 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,use_stochastic_approxim
     f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
     indices = np.argsort(np.abs(df))[::-1]
     i = 0
-    idx_learned_in = copy.deepcopy(idx_learned)
     idx_excluded = []
     idx_new = set()
     for idx in indices:
@@ -231,7 +230,17 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,use_stochastic_approxim
                 tmp = np.where(aa[0] == idx)[0]
                 idxs = aa[1][tmp]
                 idx_excluded += idxs.tolist()
-    w[list(idx_learned)] = 1e6
+    if i < ns: #This only happens if we have somehow ruled out every single point...
+        #Lets just select the rest at random then
+        nremain = ns -i
+        LOG.info("Adding {} Random points!".format(nremain))
+        full_set = set(range(df.shape[0]))
+        set_pos = full_set.difference(idx_learned)
+        idxs = list(set_pos)
+        np.random.shuffle(idxs)
+        for i in range(nremain):
+            idx_learned.add(idxs[i])
+    w[list(idx_learned)] = 1e7
     return w
 
 
