@@ -15,7 +15,7 @@ context = {
     },
     #Dataset
     'dataset': 'mnist',                                     #'circles' or 'mnist
-    'nsamples': 2000,                                        #Number of samples in dataset
+    'nsamples': 1000,                                        #Number of samples in dataset
     'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
     'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
     'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities

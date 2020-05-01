@@ -53,7 +53,7 @@ def SSL_clustering(alpha, L, Yobs, balance_weights=False, w=None):
     return U
 
 
-def SSL_clustering_AL(alpha, L, Yobs, w):
+def SSL_clustering_AL(alpha, L, Yobs, w,TOL=1e-12):
     '''
     Minimizes the objective function:
     U = arg min_Y 1/2 ||Y - Yobs||_W^2 + alpha/2 * Y'*L*Y
@@ -66,7 +66,6 @@ def SSL_clustering_AL(alpha, L, Yobs, w):
     :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
     :return:
     '''
-    TOL = 1e-12;
     MAXITER = 2000;
     if isinstance(Yobs, torch.Tensor):
         Yobs = Yobs.numpy()
@@ -95,7 +94,7 @@ def SSL_clustering_AL(alpha, L, Yobs, w):
     # U2[np.arange(U2.shape[0]),labels] = 1
     return U
 
-def SSL_clustering_1vsall(alpha, L, Yobs, w):
+def SSL_clustering_1vsall(alpha, L, Yobs, w, TOL=1e-12):
     '''
     Minimizes the objective function:
     U = arg min_Y 1/2 ||Y - Yobs||_W^2 + alpha/2 * Y'*L*Y
@@ -108,7 +107,6 @@ def SSL_clustering_1vsall(alpha, L, Yobs, w):
     :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
     :return:
     '''
-    TOL = 1e-12;
     MAXITER = 2000;
     if isinstance(Yobs, torch.Tensor):
         Yobs = Yobs.numpy()

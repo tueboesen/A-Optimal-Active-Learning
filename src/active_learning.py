@@ -64,6 +64,12 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     w[idxs] = 1e7
     L = L + 1e-2 * identity(L.shape[0])
     L = L.T @ L
+    # LOG.info("L has {} nonzero-elements, cutting it down".format(L.count_nonzero()))
+    # Lmean = np.mean(np.abs(L.data))
+    # mask = np.array(np.abs(L[L.nonzero()]) < 0.1*Lmean)[0]
+    # L.data[mask] = 0
+    # L.eliminate_zeros()
+    # LOG.info("L has {} nonzero-elements.".format(L.count_nonzero()))
     idx_learned = list(idxs)
     for i in range(c['epochs_AL']):
         # We use Active learning to find the next batch of data points to label
@@ -77,7 +83,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
         # y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
         # y = SSL_clustering_AL(c['alpha'], L, yobs, w)
         # cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
-        y = SSL_clustering_1vsall(c['alpha'], L, yobs, w)
+        y = SSL_clustering_1vsall(c['alpha'], L, yobs, w, TOL=1e-9)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
         if c['use_SL'] and (cluster_acc > 90):
@@ -124,7 +130,7 @@ class Adaptive_active_learning():
                 yi = np.sign(yi)
 
                 t0 = time.time()
-                yi = SSL_clustering_AL(self.alpha, L, yi,w)
+                yi = SSL_clustering_AL(self.alpha, L, yi,w,TOL=1e-6)
                 t1 = time.time()
                 w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
                 t2 = time.time()
@@ -261,16 +267,19 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     '''
 
     W = diags(w)
-    H = L.T @ L + alpha * W
-    bias = cgmatrix(H, L @ y)
+    H = L + alpha * W
+    t0 = time.time()
+    aa = L @ y
+    bias = cgmatrix(H, aa,TOL=1e-6)
+    t1 = time.time()
     biasSq = np.trace(bias.T @ bias)
-    tmp = cgmatrix(H, bias)
+    tmp = cgmatrix(H, bias,TOL=1e-6)
     dbiasSq = - 2 * np.sum(bias * tmp,axis=1)
 
     if sigma > 0:
-        Q = cgmatrix(H, W @ v)
+        Q = cgmatrix(H, W @ v,TOL=1e-6)
         var = np.trace(Q.T @ Q)
-        tmp = cgmatrix(H, Q)
+        tmp = cgmatrix(H, Q,TOL=1e-6)
         dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
     else:
         var = 0
@@ -285,7 +294,7 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
     return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
 
-def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
+def cgmatrix(A,B,TOL=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     '''
     Computes the conjugate gradient solution to Ax=B, where B is a Matrix
     :param A:
@@ -299,16 +308,17 @@ def cgmatrix(A,B,tol=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     :return:
     '''
     n,nrhs = B.shape
-    # def precond(x):
-    #     return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
-    # M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
+    def precond(x):
+        return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
+    M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
     x = np.zeros(B.shape)
     for i in range(nrhs):
         if sparse.issparse(B):
             b = B[:,i].todense()
         else:
             b = B[:,i]
-        x[:,i], _ = cg(A, b, x0=x0, tol=tol, maxiter=maxiter, M=M, callback=callback, atol=atol)
+        x[:,i], _ = cg(A, b, x0=x0, tol=TOL, maxiter=maxiter, M=M, callback=callback, atol=atol)
+        # x[:,i], _ = cg(A, b, x0=x0, tol=TOL, maxiter=maxiter, M=M, callback=callback, atol=atol)
     return x
 
 
