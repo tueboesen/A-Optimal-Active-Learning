@@ -83,7 +83,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
         # y = SSL_clustering(c['alpha'], L, yobs, balance_weights=True)
         # y = SSL_clustering_AL(c['alpha'], L, yobs, w)
         # cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
-        y = SSL_clustering_1vsall(c['alpha'], L, yobs, w, TOL=1e-9)
+        y = SSL_clustering_1vsall(c['alpha'], L, yobs, w, TOL=1e-12)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
         if c['use_SL'] and (cluster_acc > 90):
@@ -130,7 +130,7 @@ class Adaptive_active_learning():
                 yi = np.sign(yi)
 
                 t0 = time.time()
-                yi = SSL_clustering_AL(self.alpha, L, yi,w,TOL=1e-6)
+                yi = SSL_clustering_AL(self.alpha, L, yi,w,TOL=1e-12)
                 t1 = time.time()
                 w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
                 t2 = time.time()
@@ -269,18 +269,22 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     W = diags(w)
     H = L + alpha * W
     t0 = time.time()
-    aa = L @ y
-    bias = cgmatrix(H, aa,TOL=1e-6)
+    # Ly = L @ y
+    bias = cgmatrix(H, L @ y,TOL=1e-12)
     t1 = time.time()
     biasSq = np.trace(bias.T @ bias)
-    tmp = cgmatrix(H, bias,TOL=1e-6)
-    dbiasSq = - 2 * np.sum(bias * tmp,axis=1)
+    H_bias = cgmatrix(H, bias,TOL=1e-12)
+    t2 = time.time()
+    dbiasSq = - 2 * np.sum(bias * H_bias,axis=1)
 
     if sigma > 0:
-        Q = cgmatrix(H, W @ v,TOL=1e-6)
+        Wv = W @ v
+        Q = cgmatrix(H, Wv,TOL=1e-12)
+        t3 = time.time()
         var = np.trace(Q.T @ Q)
-        tmp = cgmatrix(H, Q,TOL=1e-6)
-        dvar = np.squeeze(np.array((2 * np.sum((v-Q)*tmp,axis=1))))
+        H_Q = cgmatrix(H, Q,TOL=1e-12)
+        dvar = np.squeeze(np.array((2 * np.sum((v-Q)*H_Q,axis=1))))
+        t4 = time.time()
     else:
         var = 0
         dvar = np.zeros_like(dbiasSq)
@@ -292,6 +296,7 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
         dcost = 0
     f = alpha**2 * biasSq + sigma**2 * var + beta * cost
     df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
+    print("#1 {},#2 {},#3 {},#4 {}".format(t1-t0,t2-t1,t3-t2,t4-t3))
     return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
 
 def cgmatrix(A,B,TOL=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
@@ -308,9 +313,9 @@ def cgmatrix(A,B,TOL=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     :return:
     '''
     n,nrhs = B.shape
-    def precond(x):
-        return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
-    M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
+    # def precond(x):
+    #     return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
+    # M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
     x = np.zeros(B.shape)
     for i in range(nrhs):
         if sparse.issparse(B):
