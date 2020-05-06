@@ -1,2 +1,5 @@
 /results/
 /venv/
+/L_Matrix.npz
+/W_Matrix.npz
+/y_vector.txt

@@ -1,7 +1,10 @@
+from datetime import datetime
 import random
 import time
 import copy
 import numpy as np
+import scipy
+from numpy.linalg import norm
 from scipy import sparse
 from scipy.sparse import identity, triu, tril, diags
 from scipy.sparse.linalg import spsolve, cg, LinearOperator
@@ -63,7 +66,8 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     w = np.zeros(L.shape[0])
     w[idxs] = 1e7
     L = L + 1e-2 * identity(L.shape[0])
-    L = L.T @ L
+    scipy.sparse.save_npz("L_Matrix", L)
+
     # LOG.info("L has {} nonzero-elements, cutting it down".format(L.count_nonzero()))
     # Lmean = np.mean(np.abs(L.data))
     # mask = np.array(np.abs(L[L.nonzero()]) < 0.1*Lmean)[0]
@@ -99,7 +103,6 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
             if c['recompute_L']:
                 L, A = compute_laplacian(features_netAL, metric=c['metric'], knn=c['knn'], union=True)
                 L = L + 1e-2 * identity(L.shape[0])
-                L = L.T @ L
         else:
             learning_acc = 0
             validator_acc = 0
@@ -130,6 +133,7 @@ class Adaptive_active_learning():
                 yi = np.sign(yi)
 
                 t0 = time.time()
+                print("Starting clustering")
                 yi = SSL_clustering_AL(self.alpha, L, yi,w,TOL=1e-12)
                 t1 = time.time()
                 w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
@@ -238,7 +242,7 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,use_stochastic_approxim
                 idx_excluded += idxs.tolist()
     if i < ns: #This only happens if we have somehow ruled out every single point...
         #Lets just select the rest at random then
-        nremain = ns -i
+        nremain = ns - i
         LOG.info("Adding {} Random points!".format(nremain))
         full_set = set(range(df.shape[0]))
         set_pos = full_set.difference(idx_learned)
@@ -265,26 +269,23 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     :param v: can be either a vector or a matrix, if it is a random vector +-1 the matrix inverse will be stochastically approximated, if it is an identity matrix the inverse will be exact (but much slower)
     :return:
     '''
-
+    n = y.shape[0]
     W = diags(w)
-    H = L + alpha * W
-    t0 = time.time()
+    H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
+    H = LinearOperator((n, n), H_lambda)
+
     # Ly = L @ y
-    bias = cgmatrix(H, L @ y,TOL=1e-12)
-    t1 = time.time()
+    bias = cgmatrix(H, L.T @ L @ y,TOL=1e-6, MAXITER=10000, debug=True)
     biasSq = np.trace(bias.T @ bias)
-    H_bias = cgmatrix(H, bias,TOL=1e-12)
-    t2 = time.time()
+    H_bias = cgmatrix(H, bias,TOL=1e-6, MAXITER=10000, debug=True)
     dbiasSq = - 2 * np.sum(bias * H_bias,axis=1)
 
     if sigma > 0:
         Wv = W @ v
-        Q = cgmatrix(H, Wv,TOL=1e-12)
-        t3 = time.time()
+        Q = cgmatrix(H, Wv,TOL=1e-12, MAXITER=10000, debug=True)
         var = np.trace(Q.T @ Q)
-        H_Q = cgmatrix(H, Q,TOL=1e-12)
+        H_Q = cgmatrix(H, Q,TOL=1e-6, MAXITER=10000, debug=True)
         dvar = np.squeeze(np.array((2 * np.sum((v-Q)*H_Q,axis=1))))
-        t4 = time.time()
     else:
         var = 0
         dvar = np.zeros_like(dbiasSq)
@@ -296,10 +297,9 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
         dcost = 0
     f = alpha**2 * biasSq + sigma**2 * var + beta * cost
     df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
-    print("#1 {},#2 {},#3 {},#4 {}".format(t1-t0,t2-t1,t3-t2,t4-t3))
     return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
 
-def cgmatrix(A,B,TOL=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
+def cgmatrix(A,B,TOL=1e-08,MAXITER=None,M=None,x0=None,callback=None,ATOL=None,debug=False):
     '''
     Computes the conjugate gradient solution to Ax=B, where B is a Matrix
     :param A:
@@ -313,17 +313,23 @@ def cgmatrix(A,B,TOL=1e-08,maxiter=None,M=None,x0=None,callback=None,atol=None):
     :return:
     '''
     n,nrhs = B.shape
-    # def precond(x):
-    #     return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
-    # M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
+    t0 = time.time()
     x = np.zeros(B.shape)
+    status = -np.ones(nrhs)
+    residual = -np.ones(nrhs)
     for i in range(nrhs):
         if sparse.issparse(B):
             b = B[:,i].todense()
         else:
             b = B[:,i]
-        x[:,i], _ = cg(A, b, x0=x0, tol=TOL, maxiter=maxiter, M=M, callback=callback, atol=atol)
-        # x[:,i], _ = cg(A, b, x0=x0, tol=TOL, maxiter=maxiter, M=M, callback=callback, atol=atol)
+        x[:,i], status[i] = cg(A, b, x0=x0, tol=TOL, maxiter=MAXITER, M=M, callback=callback, atol=ATOL)
+        if debug:
+            bsol = A @ x[:,i]
+            residual[i] = norm(bsol - b)
+
+    t1 = time.time()
+    if debug:
+        print("CG took {} s, exited with status {} and had residual {}".format(t1-t0, status, residual))
     return x
 
 

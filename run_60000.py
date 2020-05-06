@@ -31,9 +31,9 @@ context = {
     'knn': 10,  # Number of nearest neighbours
 
     #Active learning
-    'epochs_AL': 40,                                        #Iterations to use in Active learning
+    'epochs_AL': 15,                                        #Iterations to use in Active learning
     'lr_AL': 1e-3,
-    'nlabels_pr_class': 5,                                  #Number of labels to learn in each iteration
+    'nlabels_pr_class': 1,                                  #Number of labels to learn in each iteration
     'alpha': 1,
     'sigma': 0.01,
     'beta': 0,
