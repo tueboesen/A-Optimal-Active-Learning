@@ -9,7 +9,7 @@ import torch
 import torchvision
 
 
-def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True):
+def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True,lr_base=None):
     '''
     Standard training routine.
     :param net: Network to train
@@ -33,6 +33,8 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
     for epoch in range(epochs):
         loss_epoch = 0
         for i, (images, labels, plabels, idxs) in enumerate(dataloader_train):
+            if lr_base is not None:
+                adjust_learning_rate(optimizer, lr_base, epoch, epochs,i,len(dataloader_train))
             images = images.to(device)
             if use_probabilities:
                 target = plabels.to(device)
@@ -164,3 +166,19 @@ def run_AE(net,dataloader,device='cpu'):
         encoded = torch.cat(enc_tmp, dim=0)
 
     return encoded
+
+
+def adjust_learning_rate(optimizer, lr_base, epoch, total_epochs, step_in_epoch,total_steps_in_epoch):
+    lr = lr_base
+    epoch = epoch + step_in_epoch / total_steps_in_epoch
+    # Cosine LR rampdown from https://arxiv.org/abs/1608.03983 (but one cycle only)
+    assert epoch <= total_epochs
+    lr *= cosine_rampdown(epoch, total_epochs)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return
+
+def cosine_rampdown(current, rampdown_length):
+    """Cosine rampdown from https://arxiv.org/abs/1608.03983"""
+    assert 0 <= current <= rampdown_length
+    return float(.5 * (np.cos(np.pi * current / rampdown_length) + 1))

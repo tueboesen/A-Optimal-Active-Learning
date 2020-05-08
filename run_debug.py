@@ -22,7 +22,7 @@ context = {
     'batch_size': 16,
     'use_1_vs_all_dataset': -1,                              #If negative the 1_vs_all_dataset is not used, otherwise the selected number will be pitched against all other labels
     #Supervised learning
-    'use_SL': False,
+    'use_SL': True,
     'epochs_SL': 3,                                         #Epochs for supervised learning
     'lr': 1e-2,
     'loss_type': 'MSE',                                     #Options are MSE and CE

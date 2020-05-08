@@ -22,18 +22,18 @@ context = {
     'batch_size': 16,
     'use_1_vs_all_dataset': -1,                              #If negative the 1_vs_all_dataset is not used, otherwise the selected number will be pitched against all other labels
     #Supervised learning
-    'use_SL': False,
-    'epochs_SL': 5,                                         #Epochs for supervised learning
+    'use_SL': True,
+    'epochs_SL': 10,                                         #Epochs for supervised learning
     'lr': 1e-2,
     'loss_type': 'MSE',                                     #Options are MSE and CE
     # Grap Laplacian
-    'metric': 'l2',  # 'l2' or 'cosine'
+    'metric': 'cosine',  # 'l2' or 'cosine'
     'knn': 10,  # Number of nearest neighbours
 
     #Active learning
-    'epochs_AL': 15,                                        #Iterations to use in Active learning
+    'epochs_AL': 40,                                        #Iterations to use in Active learning
     'lr_AL': 1e-3,
-    'nlabels_pr_class': 1,                                  #Number of labels to learn in each iteration
+    'nlabels_pr_class': 5,                                  #Number of labels to learn in each iteration
     'alpha': 1,
     'sigma': 0.01,
     'beta': 0,

@@ -99,15 +99,15 @@ def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
     A, dd = ANN_hnsw(features, euclidian_metric=metric, union=union, k=knn, cutoff=cutoff)
     t2 = time.time()
     if metric == 'l2':
-        L, _ = Laplacian_Euclidian(features, A, dd)
+        L, L_sym = Laplacian_Euclidian(features, A, dd)
     elif metric == 'cosine':
-        L, _ = Laplacian_angular(features, A)
+        L, L_sym = Laplacian_angular(features, A)
     else:
         raise ValueError('{} is not an implemented metric'.format(metric))
     t3 = time.time()
     print('ANN = {}'.format(t2-t1))
     print('L = {}'.format(t3-t2))
-    return L,A
+    return L_sym,A
 
 
 
@@ -130,6 +130,8 @@ def Laplacian_Euclidian(X, A, sigma, dt=None):
     V = np.exp(-tmp / (sigma))
     W = coo_matrix((V, (I, J)), shape=(n, n))
     D = coo_matrix((n, n), dtype=dt)
+    if np.min(np.abs(np.sum(W,axis=0))) == 0:
+        print("If a point has zero here, it means that it is so far away from all other points, that the exponential distance is infinite, hence similarity is zero, and is effectively unconnected. This might be a problem")
     coo_matrix.setdiag(D, np.squeeze(np.array(np.sum(W, axis=0))))
     Dh = np.sqrt(D)
     np.reciprocal(Dh.data, out=Dh.data)
@@ -157,7 +159,9 @@ def Laplacian_angular(X, A,dt=None):
     J = A.col
     V = 1-np.sum((X[I] * X[J]), axis=1)/(np.sqrt(np.sum(X[I]**2, axis=1))*np.sqrt(np.sum(X[J]**2, axis=1)))
     V[V<0] = 0 #Numerical precision can sometimes lead to some elements being less than zero.
-    assert np.max(V) < 1, "some elements of V are larger than 1. This means that some neighbours are less than ortogonal, hence absolutely terrible neighbours. What are you doing?"
+    if np.max(V) < 1:
+        print("some elements of V are larger than 1. This means that some neighbours are less than ortogonal, hence absolutely terrible neighbours. What are you doing?")
+    # assert np.max(V) < 1, "some elements of V are larger than 1. This means that some neighbours are less than ortogonal, hence absolutely terrible neighbours. What are you doing?"
     W = coo_matrix((V, (I, J)), shape=(n, n))
     D = coo_matrix((n, n), dtype=dt)
     coo_matrix.setdiag(D, np.squeeze(np.array(np.sum(W, axis=0))))

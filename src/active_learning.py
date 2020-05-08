@@ -66,7 +66,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     w = np.zeros(L.shape[0])
     w[idxs] = 1e7
     L = L + 1e-2 * identity(L.shape[0])
-    scipy.sparse.save_npz("L_Matrix", L)
+    # scipy.sparse.save_npz("L_Matrix", L)
 
     # LOG.info("L has {} nonzero-elements, cutting it down".format(L.count_nonzero()))
     # Lmean = np.mean(np.abs(L.data))
@@ -90,14 +90,14 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
         y = SSL_clustering_1vsall(c['alpha'], L, yobs, w, TOL=1e-12)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
-        if c['use_SL'] and (cluster_acc > 90):
+        if c['use_SL'] and (i >= 10):
             y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
             # Next we convert these pseudo-probabilities to actual probabilities
             # y = convert_pseudo_to_prob(y,use_softmax=True)
             dataloader_train = set_labels(y, dataloader_train)  # We save the label probabilities in y, into the dataloader
             # train a network on this data
             netAL, validator_acc = train(net, optimizer, dataloader_train, loss_fnc, LOG, device=device, dataloader_validate=dataloader_validate,
-                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'])
+                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'],lr_base=c['lr'])
             features_netAL = eval_net(netAL, dataloader_train.dataset, device=device)  # we should probably have the option of combining these with the previous features.
             learning_acc = analyse_features(features_netAL, dataloader_train.dataset, LOG, save=c['result_dir'], iter=i)
             if c['recompute_L']:
@@ -275,16 +275,16 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     H = LinearOperator((n, n), H_lambda)
 
     # Ly = L @ y
-    bias = cgmatrix(H, L.T @ L @ y,TOL=1e-6, MAXITER=10000, debug=True)
+    bias = cgmatrix(H, L.T @ L @ y,TOL=1e-6, MAXITER=10000, debug=False)
     biasSq = np.trace(bias.T @ bias)
-    H_bias = cgmatrix(H, bias,TOL=1e-6, MAXITER=10000, debug=True)
+    H_bias = cgmatrix(H, bias,TOL=1e-6, MAXITER=10000, debug=False)
     dbiasSq = - 2 * np.sum(bias * H_bias,axis=1)
 
     if sigma > 0:
         Wv = W @ v
-        Q = cgmatrix(H, Wv,TOL=1e-12, MAXITER=10000, debug=True)
+        Q = cgmatrix(H, Wv,TOL=1e-12, MAXITER=10000, debug=False)
         var = np.trace(Q.T @ Q)
-        H_Q = cgmatrix(H, Q,TOL=1e-6, MAXITER=10000, debug=True)
+        H_Q = cgmatrix(H, Q,TOL=1e-6, MAXITER=10000, debug=False)
         dvar = np.squeeze(np.array((2 * np.sum((v-Q)*H_Q,axis=1))))
     else:
         var = 0
