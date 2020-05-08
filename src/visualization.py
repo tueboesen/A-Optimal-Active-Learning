@@ -59,15 +59,37 @@ def preview(dataloader,save=None):
     if dataloader.dataset.name == 'circles':
         xy = (dataloader.dataset.imgs).numpy()
         labels = dataloader.dataset.labels
-        labels_unique = np.unique(labels)
-        fig = plt.figure(figsize=[10, 10])
-        for label in labels_unique:
-            idx = np.where(labels == np.float32(label))[0]
-            if label == -1:
-                plt.plot(xy[idx, 0], xy[idx, 1], color='gray', marker='o', linestyle="None")
-            else:
-                plt.plot(xy[idx,0],xy[idx,1],'o')
-        plt.title('True classes')
+        # labels_unique = np.unique(labels)
+        plabels = dataloader.dataset.plabels.numpy()
+        plabels = plabels - np.min(plabels, axis=1)[:, None]
+        psum = np.sum(plabels, axis=1)
+        idx = np.where(psum != np.float32((0)))[0]
+        plabels[idx] = plabels[idx] / psum[idx, None]
+        fig = plt.figure(figsize=[10, 10], dpi=400)
+        # fig = plt.figure(figsize=[10, 10])
+        plt.scatter(xy[:, 0], xy[:, 1], c=plabels, alpha=1)
+
+        if len(idx) < len(plabels):
+            idx = np.where(labels != np.float32(-1))[0]
+            # plt.scatter(xy[idx, 0], xy[idx, 1], c=plabels[idx], marker='x', s=1000)
+            plt.scatter(xy[idx, 0], xy[idx, 1], c=plabels[idx], marker='o', s=500)
+        # for label in labels_unique:
+        #     idx = np.where(labels == np.float32(label))[0]
+        #     if label == -1:
+        #         plt.plot(xy[idx, 0], xy[idx, 1], color='gray', marker='o', linestyle="None")
+        #     else:
+        #         plt.plot(xy[idx,0],xy[idx,1],'o')
+        # plt.title('True classes')
+        plt.tick_params(
+            axis='both',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False,  # labels along the bottom edge are off
+            labelleft=False,  # labels along the bottom edge are off
+            left = False,
+            right = False)
+        plt.tight_layout()
         if save:
             fig.savefig(save)
             plt.close(fig.number)
@@ -75,28 +97,40 @@ def preview(dataloader,save=None):
 
 
 def vizualize_circles(U,dataset,saveprefix=None,iter=None):
-    xy = (dataset.imgs).numpy()
-    labels = dataset.labels
-    plabels = U
-    plabels = plabels - np.min(plabels,axis=1)[:,None]
-    psum = np.sum(plabels,axis=1)
-    idx = np.where(psum != np.float32((0)))
-    plabels[idx] = plabels[idx]/psum[idx,None]
-    nc = dataset.nc
-    fig = plt.figure(figsize=[10, 10])
-    plt.scatter(xy[:,0], xy[:,1], c=plabels, alpha=0.5)
-    idx = np.where(labels != np.float32(-1))[0]
-    plt.scatter(xy[idx,0], xy[idx,1], c='black',marker='x', s=100)
-    # plt.scatter(xy[idx,0], xy[idx,1], c=plabels[idx,:],marker='x', s=100)
-    if saveprefix:
-        save = "{}_{}_{}.png".format(saveprefix, iter,'cluster')
-        fig.savefig(save)
-        plt.close(fig.number)
+    if iter >= 4:
+        xy = (dataset.imgs).numpy()
+        labels = dataset.labels
+        plabels = U
+        plabels = plabels - np.min(plabels,axis=1)[:,None]
+        psum = np.sum(plabels,axis=1)
+        idx = np.where(psum != np.float32((0)))
+        plabels[idx] = plabels[idx]/psum[idx,None]
+        nc = dataset.nc
+        fig = plt.figure(figsize=[10, 10],dpi=400)
+        plt.scatter(xy[:,0], xy[:,1], c=plabels, alpha=1)
+        idx = np.where(labels != np.float32(-1))[0]
+        plt.scatter(xy[idx,0], xy[idx,1], c='black',marker='x', s=300)
+        # plt.scatter(xy[idx,0], xy[idx,1], c=plabels[idx,:],marker='x', s=100)
+        plt.tick_params(
+            axis='both',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False,  # labels along the bottom edge are off
+            labelleft=False,  # labels along the bottom edge are off
+            left=False,
+            right=False)
+        plt.tight_layout()
+        if saveprefix:
+            save = "{}_{}_{}.png".format(saveprefix, iter,'cluster')
+            fig.savefig(save)
+            plt.close(fig.number)
     return
 
 
 
 def debug_circles(xy,y,df,dbias,dvar,idx_known,idx_new,saveprefix=None):
+    cs = 1000 #Circle size
     def plot_and_color(xy,y,title):
         n = y.shape[0]
         if y.ndim == 2:
@@ -111,28 +145,30 @@ def debug_circles(xy,y,df,dbias,dvar,idx_known,idx_new,saveprefix=None):
             yn = y / ym
             rgba_colors = np.zeros((n, 4))
             rgba_colors[yn > 0, 0] = 1
-            rgba_colors[:, 3] = np.abs(yn)
+            opacity = np.abs(yn)
+            # Ensure that all points have a minimum outline
+            opacity[opacity < 0.01] = 0.01
+            rgba_colors[:, 3] = opacity
             plt.scatter(xy[:,0], xy[:,1], c=rgba_colors)
-            plt.title(title)
     fig = plt.figure(3,figsize=[20, 10])
     plt.clf()
     plt.subplot(2,2,1)
     y = np.squeeze(y)
     plot_and_color(xy,y,'labels visualized')
-    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
-    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=cs)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=cs)
     plt.subplot(2,2,2)
     plot_and_color(xy,np.abs(df),'abs(df) visualized')
-    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
-    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=cs)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=cs)
     plt.subplot(2, 2, 3)
     plot_and_color(xy,dbias,'dbias visualized')
-    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
-    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=cs)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=cs)
     plt.subplot(2, 2, 4)
     plot_and_color(xy,dvar,'dvar visualized')
-    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=250)
-    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=250)
+    plt.scatter(xy[list(idx_known),0],xy[list(idx_known),1],marker='x',s=cs)
+    plt.scatter(xy[list(idx_new),0],xy[list(idx_new),1],marker='+',s=cs)
     if saveprefix:
         root_dir = os.path.dirname(saveprefix)
         file_prefix = os.path.basename(saveprefix)
@@ -144,33 +180,57 @@ def debug_circles(xy,y,df,dbias,dvar,idx_known,idx_new,saveprefix=None):
         plt.close(fig.number)
 
         #Save each figure individually
-        fig = plt.figure(3, figsize=[20, 10])
+        fig = plt.figure(3, figsize=[10, 10], dpi=400)
         y = np.squeeze(y)
         plot_and_color(xy, y, 'labels visualized')
-        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
-        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
+        # plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], c='m', marker='x', s=cs)
+        # plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], c='m', marker='o', s=cs/2)
+        # plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], c='y', marker='+', s=cs)
+        # plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], c='y', marker='o', s=cs/2)
         save = "{}{}_{}.png".format(paper_figures,file_prefix, 'labels')
+        plt.tick_params(
+            axis='both',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False,  # labels along the bottom edge are off
+            labelleft=False,  # labels along the bottom edge are off
+            left=False,
+            right=False)
+        plt.tight_layout()
         fig.savefig(save)
         plt.clf()
 
-        plot_and_color(xy, np.abs(df), 'abs(df) visualized')
-        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
-        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
+        plot_and_color(xy, -np.abs(df), 'abs(df) visualized')
+        # plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1],c='m', marker='x', s=cs)
+        # plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1],c='m', marker='o', s=cs/2)
+        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], c='y', marker='+', s=cs)
+        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], c='y', marker='o', s=cs/2)
         save = "{}{}_{}.png".format(paper_figures,file_prefix, 'df')
+        plt.tick_params(
+            axis='both',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False,  # labels along the bottom edge are off
+            labelleft=False,  # labels along the bottom edge are off
+            left=False,
+            right=False)
+        plt.tight_layout()
         fig.savefig(save)
         plt.clf()
 
-        plot_and_color(xy, dbias, 'dbias visualized')
-        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
-        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
-        save = "{}{}_{}.png".format(paper_figures,file_prefix, 'dbias')
-        fig.savefig(save)
-        plt.clf()
-        plot_and_color(xy, dvar, 'dvar visualized')
-        plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=250)
-        plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=250)
-        save = "{}{}_{}.png".format(paper_figures,file_prefix, 'dvar')
-        fig.savefig(save)
+        # plot_and_color(xy, dbias, 'dbias visualized')
+        # plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=cs)
+        # plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=cs)
+        # save = "{}{}_{}.png".format(paper_figures,file_prefix, 'dbias')
+        # fig.savefig(save)
+        # plt.clf()
+        # plot_and_color(xy, dvar, 'dvar visualized')
+        # plt.scatter(xy[list(idx_known), 0], xy[list(idx_known), 1], marker='x', s=cs)
+        # plt.scatter(xy[list(idx_new), 0], xy[list(idx_new), 1], marker='+', s=cs)
+        # save = "{}{}_{}.png".format(paper_figures,file_prefix, 'dvar')
+        # fig.savefig(save)
         plt.close(fig.number)
     return
 

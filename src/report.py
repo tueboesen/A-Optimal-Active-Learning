@@ -53,13 +53,8 @@ def analyse_probability_matrix(U,dataset,LOG,L,saveprefix=None,iter=None):
     plot_distribution_matrix(U)
 
     if dataset.name == 'circles':
+        # pass
         vizualize_circles(U,dataset, saveprefix=saveprefix,iter=iter)
-    # #Lets look at L*U
-    # Usoft = softmax(U,axis=1)
-    # UL2 = np.zeros_like(U)
-    # for i in range(U.shape[1]):
-    #     UL2[:,i] = L @ Usoft[:,i]
-    # plot_distribution_matrix(UL2)
     return Accuracy
 
 def plot_distribution_matrix(v,save=None,iter=None):
