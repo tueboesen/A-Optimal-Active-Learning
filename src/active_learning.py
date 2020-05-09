@@ -64,7 +64,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     y = dataloader_train.dataset.plabels.numpy()
     idxs = np.nonzero(y[:,0])[0]
     w = np.zeros(L.shape[0])
-    w[idxs] = 1e7
+    w[idxs] = c['w']
     L = L + 1e-2 * identity(L.shape[0])
     # scipy.sparse.save_npz("L_Matrix", L)
 
@@ -77,7 +77,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     idx_learned = list(idxs)
     for i in range(c['epochs_AL']):
         # We use Active learning to find the next batch of data points to label
-        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG)
+        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,c['w'])
 
         # With the data points found, we update the labels in our dataset
         dataloader_train = set_labels(idx_learned, dataloader_train)
@@ -90,14 +90,18 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
         y = SSL_clustering_1vsall(c['alpha'], L, yobs, w, TOL=1e-12)
         cluster_acc = analyse_probability_matrix(y, dataloader_train.dataset, LOG, L,saveprefix=saveprefix,iter=i)
 
-        if c['use_SL'] and (i >= 10):
+        if c['use_SL']:
             y[idx_learned] = dataloader_train.dataset.plabels[idx_learned]  # We update the known plabels to their true value
             # Next we convert these pseudo-probabilities to actual probabilities
             # y = convert_pseudo_to_prob(y,use_softmax=True)
             dataloader_train = set_labels(y, dataloader_train)  # We save the label probabilities in y, into the dataloader
             # train a network on this data
+            if c['use_covariance']:
+                H = (c['alpha'] * L.T @ L + diags(w)).astype(np.float32)
+            else:
+                H = None
             netAL, validator_acc = train(net, optimizer, dataloader_train, loss_fnc, LOG, device=device, dataloader_validate=dataloader_validate,
-                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'],lr_base=c['lr'])
+                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'],lr_base=c['lr'],cov=H)
             features_netAL = eval_net(netAL, dataloader_train.dataset, device=device)  # we should probably have the option of combining these with the previous features.
             learning_acc = analyse_features(features_netAL, dataloader_train.dataset, LOG, save=c['result_dir'], iter=i)
             if c['recompute_L']:
@@ -123,7 +127,7 @@ class Adaptive_active_learning():
         self.debug = debug
         super(Adaptive_active_learning, self).__init__()
 
-    def __call__(self, idx_learned,L,yobs,w,LOG):
+    def __call__(self, idx_learned,L,yobs,w,LOG,w0):
         idx_learned = set(idx_learned)
         n, nc = yobs.shape
         if self.use_1_vs_all:
@@ -136,7 +140,7 @@ class Adaptive_active_learning():
                 print("Starting clustering")
                 yi = SSL_clustering_AL(self.alpha, L, yi,w,TOL=1e-12)
                 t1 = time.time()
-                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG)
+                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,w0)
                 t2 = time.time()
                 idx = np.nonzero(w)[0]
                 yobs[idx,:] = self.plabels[idx,:]
@@ -198,7 +202,7 @@ def update_laplacian(L,y,Lmax,idxs,y_truth,idxs_learned=None):
             L[idxj, idx] = 0
     return L,y,idxs_learned
 
-def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
+def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,w0,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
     '''
     Finds the next ns points to learn, according to:
     min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
@@ -250,7 +254,7 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,use_stochastic_approxim
         np.random.shuffle(idxs)
         for i in range(nremain):
             idx_learned.add(idxs[i])
-    w[list(idx_learned)] = 1e7
+    w[list(idx_learned)] = w0
     return w
 
 

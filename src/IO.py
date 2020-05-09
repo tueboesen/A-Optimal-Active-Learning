@@ -2,7 +2,7 @@ import os
 
 import torch
 
-from src.networks_ae import select_network
+from src.networks_ae import select_network_ae
 from src.optimization import run_AE
 
 
@@ -31,7 +31,7 @@ def load_autoencoder(fileloc,LOG,nsamples,decode_dim,network_type,dataloader,dev
     data = torch.load(fileloc)
     if data['decode_dim'] != decode_dim:
         LOG.warning("The autoencoder was built with a decode dim of {}, but you have selected {}.".format(data['decode_dim'],decode_dim))
-    netAE = select_network(network_type, decode_dim=decode_dim)
+    netAE = select_network_ae(network_type, decode_dim=decode_dim)
     netAE.load_state_dict(data['autoencoder_state'])
     if data['nsamples'] != nsamples:
         LOG.info("The autoencoder was originally trained on a dataset with {} samples, but your dataset has {} samples. Rebuilding features...".format(data['nsamples'],nsamples))

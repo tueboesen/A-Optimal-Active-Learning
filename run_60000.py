@@ -19,13 +19,15 @@ context = {
     'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
     'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
     'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
-    'batch_size': 16,
+    'batch_size': 500,
     'use_1_vs_all_dataset': -1,                              #If negative the 1_vs_all_dataset is not used, otherwise the selected number will be pitched against all other labels
     #Supervised learning
     'use_SL': True,
     'epochs_SL': 10,                                         #Epochs for supervised learning
-    'lr': 1e-2,
+    'lr': 1e-3,
     'loss_type': 'MSE',                                     #Options are MSE and CE
+    'network': 'resnet',
+    'use_covariance': False,
     # Grap Laplacian
     'metric': 'cosine',  # 'l2' or 'cosine'
     'knn': 10,  # Number of nearest neighbours
@@ -39,12 +41,13 @@ context = {
     'beta': 0,
     'use_1_vs_all': True,
     'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.
+    'w': 1e7,
 
     #Auto encoder
     'use_AE': True,                                        #Use an autoencoder to generate an encoded feature space
     'load_AE': 'results/autoencoder/60000_50d/autoencoder.pt',
     'epochs_AE': 100,
-    'lr_AE': 1e-3,
+    'lr_AE': 1e-2,
     'network_AE': 'linear',                                 #Options are 'conv','linear'
     'decode_dim': 50,                                       #When network is linear this determines the dimension of the encoded space.
 }

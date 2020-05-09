@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 
-def select_network(network,decode_dim=10):
+def select_network_ae(network,decode_dim=10):
     '''
     Selects the autoencoder to use.
     :param network:

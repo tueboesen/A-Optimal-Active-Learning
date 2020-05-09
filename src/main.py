@@ -19,8 +19,8 @@ from src.active_learning import OEDA, Adaptive_active_learning, run_active_learn
     select_active_learning_method
 from src.dataloader import Load_MNIST, set_labels, Load_dataset
 from src.losses import select_loss_fnc
-from src.networks import ResidualBlock, ResNet
-from src.networks_ae import select_network
+from src.networks import ResidualBlock, ResNet, select_network
+from src.networks_ae import select_network_ae
 from src.optimization import train_AE, eval_net, train
 from src.report import analyse_probability_matrix, analyse_features
 from src.utils import determine_network_param, fix_seed, update_results, save_results, setup_results
@@ -43,7 +43,7 @@ def main(c):
     for key, value in c.items():
         LOG.info("{:30s} : {}".format(key, value))
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
+    # device = 'cpu'
     # Load Dataset
     dl_train,dl_test = Load_dataset(c,device=device)
 
@@ -54,11 +54,11 @@ def main(c):
             LOG.info("Autoencoder loaded.")
         else:
             LOG.info("Setting up and training an autoencoder...")
-            netAE = select_network(c['network_AE'],c['decode_dim'])
+            netAE = select_network_ae(c['network_AE'],c['decode_dim'])
             LOG.info('Number of parameters in autoencoder: {}'.format(determine_network_param(netAE)))
             optimizerAE = optim.Adam(list(netAE.parameters()), lr=c['lr_AE'],weight_decay=1e-5)
             loss_fnc_ae = nn.MSELoss(reduction='sum') #Loss function for autoencoder should always be MSE
-            netAE,features = train_AE(netAE,optimizerAE,dl_train,loss_fnc_ae,LOG,device=device,epochs=c['epochs_AE'],save="{}/{}.png".format(c['result_dir'], 'autoencoder'))
+            netAE,features = train_AE(netAE,optimizerAE,dl_train,loss_fnc_ae,LOG,device=device,epochs=c['epochs_AE'],save="{}/{}.png".format(c['result_dir'], 'autoencoder'),lr_base=c['lr_AE'])
             state = {'features': features,
                      'epochs_AE': c['epochs_AE'],
                      'nsamples': c['nsamples'],
@@ -73,12 +73,6 @@ def main(c):
 
     # Calculate Laplacian
     L,A = compute_laplacian(features, metric=c['metric'], knn=c['knn'], union=True)
-
-    # Setup Network Geometry
-    net_args = {
-        "block": ResidualBlock,
-        "layers": [2, 2, 2, 2]
-    }
 
     # Save preview
     preview(dl_train, save="{}/{}.png".format(c['result_dir'], 'True_classes'))
@@ -99,18 +93,28 @@ def main(c):
         }
         results.append(res)
 
+    # net_args = {
+    #     "block": ResidualBlock,
+    #     "layers": [2, 2, 2, 2]
+    # }
+
+
     for i in range(c['nrepeats']):
         for j,(method_name, method_val) in enumerate(c['AL_methods'].items()):
             if method_val:
                 LOG.info('Starting {}...'.format(method_name))
-                net = ResNet(**net_args)
+                net = select_network(c['network'],dl_train.dataset.nc)
+                # net = ResNet(**net_args)
                 LOG.info('Number of parameters: {}'.format(determine_network_param(net)))
-                optimizer = optim.Adam(list(net.parameters()), lr=c['lr'],weight_decay=1e-5)
+                optimizer = optim.SGD(list(net.parameters()), lr=c['lr'],weight_decay=1e-5, momentum=0.9)
                 method_fnc = select_active_learning_method(method_name,c,dl_train.dataset)
                 result, _ = run_active_learning(net, optimizer, loss_fnc, dl_train, dl_test, c, LOG, method_fnc, L, device,saveprefix="{}/{}_{}_".format(c['result_dir'], i,method_name))
                 save_results(results,result, c['result_dir'],j)
                 plot_results(results, j, save=c['result_dir'])
                 LOG.info('Done with {}'.format(method_name))
+
+
+
 
 
     # if c['use_active_learning']:

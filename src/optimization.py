@@ -3,13 +3,13 @@ import time
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-
+from scipy.sparse import diags
 import numpy as np
 import torch
 import torchvision
 
 
-def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True,lr_base=None):
+def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True,lr_base=None,cov=None):
     '''
     Standard training routine.
     :param net: Network to train
@@ -30,11 +30,12 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
         weights = torch.ones(len(dataloader_train.dataset)).to(device)
     net.to(device)
     t0 = time.time()
+    # xy = torch.empty(dataloader_train)
     for epoch in range(epochs):
         loss_epoch = 0
         for i, (images, labels, plabels, idxs) in enumerate(dataloader_train):
             if lr_base is not None:
-                adjust_learning_rate(optimizer, lr_base, epoch, epochs,i,len(dataloader_train))
+                lr = adjust_learning_rate(optimizer, lr_base, epoch, epochs,i,len(dataloader_train))
             images = images.to(device)
             if use_probabilities:
                 target = plabels.to(device)
@@ -43,7 +44,28 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
                 target = labels.to(device)
             optimizer.zero_grad()
             outputs = net(images)
-            loss = (weights[idxs] * loss_fnc(outputs, target)).mean()
+            if cov is not None:
+                n = cov.shape[0]
+                nb = len(idxs)
+                idxs_remain = list(set(range(cov.shape[0])).difference(idxs.numpy()))
+                nremain = len(idxs_remain)
+                tmp = cov[idxs,:]
+                Hbb = tmp[:,idxs]
+                Hbo = tmp[:,idxs_remain]
+                tmp = cov[idxs_remain,:]
+                Hoo = tmp[:,idxs_remain]
+                Hb = Hbb - Hbo @ diags((Hoo.diagonal())**-1,0,(nremain,nremain)) @ Hbo.T
+                Hb_torch = torch.from_numpy(Hb.toarray(),).to(device)
+                dif = (target - outputs)
+                # MSE_loss = (dif*dif).sum(dim=1) # which is similar to (dif @ dif.T).diagonal()
+                loss = 0
+                for i in range(dif.shape[1]):
+                    loss += 1/nb * dif[:,i] @ Hb_torch @ dif[:,i]
+                # I = torch.eye(len(idxs)).to(device)
+                # loss = torch.mm(torch.mm(dif.T,Hb_torch),dif)
+                # lossI =  torch.mm(torch.mm(dif.T,I),dif)
+            else:
+                loss = (weights[idxs] * loss_fnc(outputs, target)).mean()
             loss.backward()
             optimizer.step()
             loss_epoch += loss.item()
@@ -86,7 +108,7 @@ def eval_net(net,dataset,device='cpu',batchsize=501):
     net.train()
     return output
 
-def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100,save=None):
+def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100,save=None,lr_base=None):
     '''
     Training routine for an autoencoder
     :param net: Network to train
@@ -106,6 +128,8 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
     for epoch in range(epochs):
         loss_epoch = 0
         for i, (images, _, _, _) in enumerate(dataloader_train):
+            if lr_base is not None:
+                adjust_learning_rate(optimizer, lr_base, epoch, epochs,i,len(dataloader_train))
             images = images.to(device)
             optimizer.zero_grad()
             _,decoded = net(images)
@@ -176,7 +200,7 @@ def adjust_learning_rate(optimizer, lr_base, epoch, total_epochs, step_in_epoch,
     lr *= cosine_rampdown(epoch, total_epochs)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-    return
+    return lr
 
 def cosine_rampdown(current, rampdown_length):
     """Cosine rampdown from https://arxiv.org/abs/1608.03983"""

@@ -15,7 +15,7 @@ context = {
     },
     #Dataset
     'dataset': 'mnist',                                     #'circles' or 'mnist
-    'nsamples': 1000,                                        #Number of samples in dataset
+    'nsamples': 100,                                        #Number of samples in dataset
     'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
     'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
     'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
@@ -26,6 +26,7 @@ context = {
     'epochs_SL': 3,                                         #Epochs for supervised learning
     'lr': 1e-2,
     'loss_type': 'MSE',                                     #Options are MSE and CE
+    'network': 'resnet',
     # Grap Laplacian
     'metric': 'l2',  # 'l2' or 'cosine'
     'knn': 10,  # Number of nearest neighbours
@@ -39,6 +40,7 @@ context = {
     'beta': 0,
     'use_1_vs_all': True,
     'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.
+    'w': 1,
 
     #Auto encoder
     'use_AE': False,                                        #Use an autoencoder to generate an encoded feature space
