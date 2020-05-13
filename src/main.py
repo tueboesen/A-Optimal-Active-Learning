@@ -72,7 +72,7 @@ def main(c):
         features = dl_train.dataset.imgs
 
     # Calculate Laplacian
-    L,A = compute_laplacian(features, metric=c['metric'], knn=c['knn'], union=True)
+    L,A = compute_laplacian(features, metric=c['metric'], knn=c['knn'], union=True,Lsym=c['Lsym'])
 
     # Save preview
     preview(dl_train, save="{}/{}.png".format(c['result_dir'], 'True_classes'))

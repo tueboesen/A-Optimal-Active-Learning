@@ -151,7 +151,7 @@ def analyse_features(U,dataset,LOG,save=None,iter=None):
     LOG.info("Accuracy = {}%".format(Accuracy))
 
     #Lets also probe the certainty of all points.
-    plot_distribution_matrix(U,save,iter)
+    # plot_distribution_matrix(U,save,iter)
 
     Uprob = softmax(U, axis=1)
     Uprob_max = Uprob[np.arange(Uprob.shape[0]),Cpred]
@@ -176,7 +176,13 @@ def analyse_features(U,dataset,LOG,save=None,iter=None):
     LOG.info(tit)
     plt.title(tit)
     if save:
-        fileloc = "{}/{}_{}.png".format(save, 'histogram',iter)
+        fileloc = "{}_{}_{}.png".format(save, 'histogram',iter)
         fig.savefig(fileloc)
+        fileloc = "{}_{}_{}.txt".format(save, 'histogram', iter)
+        with open(fileloc, 'w') as f:
+            f.write("U : {} \n".format(U.tolist()))
+            f.write("idx_right : {} \n".format(idx_right.tolist()))
+            f.write("idx_wrong : {} \n".format(idx_wrong.tolist()))
+
     plt.close(fig)
     return Accuracy

@@ -81,7 +81,7 @@ def ANN_hnsw(x, k=10, euclidian_metric=False, union=True, eff=None,cutoff=False)
 
 
 
-def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
+def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False,Lsym=True):
     '''
     Computes a knn Graph-Laplacian based on the features given.
     Note that there is room for improvement here, the graph laplacian could be built directly on the distances found by the ANN search (which are approximate) this would inherently ensure that the ANNs actually match the metric used in the graph laplacian, and make it faster.
@@ -107,7 +107,11 @@ def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
     t3 = time.time()
     print('ANN = {}'.format(t2-t1))
     print('L = {}'.format(t3-t2))
-    return L_sym,A
+    if Lsym:
+        L_select = L_sym
+    else:
+        L_select = L
+    return L_select,A
 
 
 

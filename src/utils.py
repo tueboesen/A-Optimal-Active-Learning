@@ -88,16 +88,17 @@ def normalizeMatrix(C, k=15):
 
 
 def fix_seed(seed, include_cuda=True):
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    # if you are using GPU
-    if include_cuda:
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.enabled = False
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+        # if you are using GPU
+        if include_cuda:
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.enabled = False
+            torch.backends.cudnn.benchmark = False
+            torch.backends.cudnn.deterministic = True
 
 
 def getDistMatrix(T, R, W=1):
