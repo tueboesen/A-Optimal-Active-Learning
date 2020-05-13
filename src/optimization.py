@@ -9,7 +9,7 @@ import torch
 import torchvision
 
 
-def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True,lr_base=None,cov=None):
+def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True,lr_base=None,cov=None,w=None):
     '''
     Standard training routine.
     :param net: Network to train
@@ -45,6 +45,7 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
             optimizer.zero_grad()
             outputs = net(images)
             if cov is not None:
+                lr = adjust_learning_rate(optimizer, lr_base/w, epoch, epochs, i, len(dataloader_train))
                 n = cov.shape[0]
                 nb = len(idxs)
                 idxs_remain = list(set(range(cov.shape[0])).difference(idxs.numpy()))

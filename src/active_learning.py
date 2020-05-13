@@ -12,6 +12,7 @@ from scipy.sparse.linalg import spsolve, cg, LinearOperator
 
 from src.Clustering import SSL_clustering, SSL_clustering_AL, SSL_clustering_sq, SSL_clustering_1vsall, \
     convert_pseudo_to_prob
+from src.IO import load_labels
 from src.Laplacian import compute_laplacian
 from src.dataloader import set_labels
 from src.optimization import train, eval_net
@@ -59,7 +60,12 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     results = setup_results()
 
     # We start by randomly assigning nlabels
-    dataloader_train = set_labels(c['nlabels'], dataloader_train, class_balance=True)
+    if c['load_labels']:
+        label_idx = load_labels(c['load_labels'])
+        # dataloader_train = set_labels(c['nlabels'], dataloader_train, class_balance=True)
+        dataloader_train = set_labels(label_idx, dataloader_train, class_balance=True)
+    else:
+        dataloader_train = set_labels(c['nlabels'], dataloader_train, class_balance=True)
     preview(dataloader_train,save="{}_{}.png".format(saveprefix, 'Initial_labels'))
     y = dataloader_train.dataset.plabels.numpy()
     idxs = np.nonzero(y[:,0])[0]
@@ -77,7 +83,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     idx_learned = list(idxs)
     for i in range(c['epochs_AL']):
         # We use Active learning to find the next batch of data points to label
-        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,c['w'])
+        # idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,c['w'])
 
         # With the data points found, we update the labels in our dataset
         dataloader_train = set_labels(idx_learned, dataloader_train)
@@ -99,7 +105,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
             else:
                 H = None
             netAL, validator_acc = train(net, optimizer, dataloader_train, loss_fnc, LOG, device=device, dataloader_validate=dataloader_validate,
-                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'],lr_base=c['lr'],cov=H)
+                          epochs=c['epochs_SL'], use_probabilities=c['use_label_probabilities'],lr_base=c['lr'],cov=H,w=c['w'])
             features_netAL = eval_net(netAL, dataloader_train.dataset, device=device)  # we should probably have the option of combining these with the previous features.
             learning_acc = analyse_features(features_netAL, dataloader_train.dataset, LOG, save=saveprefix, iter=i)
         else:

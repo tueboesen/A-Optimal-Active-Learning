@@ -40,3 +40,9 @@ def load_autoencoder(fileloc,LOG,nsamples,decode_dim,network_type,dataloader,dev
         features = data['features']
     return netAE, features
 
+def load_labels(file):
+    with open(file, 'r') as f:
+        idx = f.read()
+    idx_known = eval(idx)
+    idx = idx_known[0][-1]
+    return idx
