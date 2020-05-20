@@ -30,7 +30,7 @@ context = {
     # Grap Laplacian
     'metric': 'l2',  # 'l2' or 'cosine'
     'knn': 40,  # Number of nearest neighbours
-    'iterated_laplacian': 2,                                       #which order of iterated laplacian to use
+    'iterated_laplacian': 3,                                       #which order of iterated laplacian to use
 
     #Active learning
     'epochs_AL': 33,                                        #Iterations to use in Active learning
