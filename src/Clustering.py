@@ -77,6 +77,8 @@ def SSL_clustering_AL(alpha, L, Yobs, w,TOL=1e-9,MAXITER=10000, iterated_laplaci
         H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
     elif iterated_laplacian == 3:
         H_lambda = lambda x: alpha*(L @ (L.T @ (L @ x))) + (W @ x)
+    elif iterated_laplacian == 4:
+        H_lambda = lambda x: alpha * (L @ (L @ (L.T @ (L @ x)))) + (W @ x)
     else:
         raise ValueError('Not implemented')
     A = LinearOperator((n, n), H_lambda)
@@ -110,6 +112,8 @@ def SSL_clustering_1vsall(alpha, L, Yobs, w, TOL=1e-12, iterated_laplacian=2):
         H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
     elif iterated_laplacian == 3:
         H_lambda = lambda x: alpha*(L @ (L.T @ (L @ x))) + (W @ x)
+    elif iterated_laplacian == 4:
+        H_lambda = lambda x: alpha * (L @ (L @ (L.T @ (L @ x)))) + (W @ x)
     else:
         raise ValueError('Not implemented')
     A = LinearOperator((n, n), H_lambda)
@@ -174,7 +178,6 @@ def SSL_clustering_sq(alpha, L, Yobs, w):
     # U2 = np.zeros_like(U)
     # U2[np.arange(U2.shape[0]),labels] = 1
     return U
-
 
 
 def convert_pseudo_to_prob(v,use_softmax=False):

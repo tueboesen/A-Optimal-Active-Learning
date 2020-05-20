@@ -6,7 +6,7 @@ context = {
     'seed': 123557,                                         #Seed for reproduceability
     'basename': os.path.basename(__file__).split(".")[0],   #Names the folder after this filename
     'nrepeats': 10,                                          #Sets how many times the code should be repeated
-    'mode': 'fast',                                        #paper,fast,debug
+    'mode': 'debug',                                        #paper,fast,debug
     #Determines which type of learning to test:
     'AL_methods': {
         'active_learning_bayesian': False,  # Bayesian active learning
@@ -37,7 +37,7 @@ context = {
     'lr_AL': 1e-3,
     'nlabels_pr_class': 3,                                  #Number of labels to learn in each iteration
     'alpha': 1,
-    'sigma': 1,
+    'sigma': 0,
     'beta': 0,
     'use_1_vs_all': True,
     'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.

@@ -99,9 +99,9 @@ def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
     A, dd = ANN_hnsw(features, euclidian_metric=metric, union=union, k=knn, cutoff=cutoff)
     t2 = time.time()
     if metric == 'l2':
-        L, _ = Laplacian_Euclidian(features, A, dd)
+        L, L_sym = Laplacian_Euclidian(features, A, dd)
     elif metric == 'cosine':
-        L, _ = Laplacian_angular(features, A)
+        L, L_sym = Laplacian_angular(features, A)
     else:
         raise ValueError('{} is not an implemented metric'.format(metric))
     t3 = time.time()

@@ -126,7 +126,7 @@ class Adaptive_active_learning():
                 yi[:, 0] = yobs[:, j]
                 yi = np.sign(yi)
                 t0 = time.time()
-                yi = SSL_clustering_AL(self.alpha, L, yi,w,iterated_laplacian=c['iterated_laplacian'])
+                yi = SSL_clustering_AL(self.alpha, L, yi,w,iterated_laplacian=c['iterated_laplacian'],TOL=1e-12)
                 t1 = time.time()
                 w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,c,xy,saveprefix="{}_{}".format(saveprefix,j))
                 t2 = time.time()
@@ -281,20 +281,23 @@ def getOEDA(w,L,y,alpha,beta,sigma,v,c):
     elif m == 3:
         Ly = L @ L @ L @ y
         H_lambda = lambda x: alpha*(L @ (L.T @ (L @ x))) + (W @ x)
+    elif m == 4:
+        Ly =L @ L @ L @ L @ y
+        H_lambda = lambda x: alpha * (L @ (L @ (L.T @ (L @ x)))) + (W @ x)
     else:
         raise ValueError('Not implemented')
     H = LinearOperator((n, n), H_lambda)
 
-    bias = cgmatrix(H, Ly,TOL=1e-6, MAXITER=10000, debug=debug)
+    bias = cgmatrix(H, Ly,TOL=1e-12, MAXITER=10000, debug=debug)
     biasSq = np.trace(bias.T @ bias)
-    H_bias = cgmatrix(H, bias,TOL=1e-6, MAXITER=10000, debug=debug)
+    H_bias = cgmatrix(H, bias,TOL=1e-12, MAXITER=10000, debug=debug)
     dbiasSq = - 2 * np.sum(bias * H_bias,axis=1)
 
     if sigma > 0:
         Wv = W @ v
-        Q = cgmatrix(H, Wv,TOL=1e-12, MAXITER=10000, debug=debug)
+        Q = cgmatrix(H, Wv,TOL=1e-15, MAXITER=10000, debug=debug)
         var = np.trace(Q.T @ Q)
-        H_Q = cgmatrix(H, Q,TOL=1e-6, MAXITER=10000, debug=debug)
+        H_Q = cgmatrix(H, Q,TOL=1e-12, MAXITER=10000, debug=debug)
         dvar = np.squeeze(np.array((2 * np.sum((v-Q)*H_Q,axis=1))))
     else:
         var = 0
