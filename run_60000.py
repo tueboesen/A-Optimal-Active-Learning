@@ -6,6 +6,7 @@ context = {
     'seed': 123557,                                         #Seed for reproduceability
     'basename': os.path.basename(__file__).split(".")[0],   #Names the folder after this filename
     'nrepeats': 5,                                          #Sets how many times the code should be repeated
+    'mode': 'debug',
     #Determines which type of learning to test:
     'AL_methods': {
         'active_learning_bayesian': False,  # Bayesian active learning
@@ -17,20 +18,21 @@ context = {
     'dataset': 'mnist',                                     #'circles' or 'mnist
     'nsamples': 60000,                                        #Number of samples in dataset
     'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
-    'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
+    'nlabels': 500,                                           #Number of labels to start with in an adaptive scheme
     'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
     'batch_size': 500,
     'use_1_vs_all_dataset': -1,                              #If negative the 1_vs_all_dataset is not used, otherwise the selected number will be pitched against all other labels
     #Supervised learning
-    'use_SL': True,
+    'use_SL': False,
     'epochs_SL': 10,                                         #Epochs for supervised learning
     'lr': 1e-3,
     'loss_type': 'MSE',                                     #Options are MSE and CE
     'network': 'resnet',
     'use_covariance': False,
     # Grap Laplacian
-    'metric': 'cosine',  # 'l2' or 'cosine'
+    'metric': 'l2',  # 'l2' or 'cosine'
     'knn': 10,  # Number of nearest neighbours
+    'iterated_laplacian': 2,  # which order of iterated laplacian to use
 
     #Active learning
     'epochs_AL': 40,                                        #Iterations to use in Active learning
@@ -41,7 +43,7 @@ context = {
     'beta': 0,
     'use_1_vs_all': True,
     'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.
-    'w': 1e7,
+    'w': 1e6,
 
     #Auto encoder
     'use_AE': True,                                        #Use an autoencoder to generate an encoded feature space

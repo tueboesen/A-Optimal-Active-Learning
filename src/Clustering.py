@@ -53,7 +53,7 @@ def SSL_clustering(alpha, L, Yobs, balance_weights=False, w=None):
     return U
 
 
-def SSL_clustering_AL(alpha, L, Yobs, w,TOL=1e-9,MAXITER=10000):
+def SSL_clustering_AL(alpha, L, Yobs, w,TOL=1e-9,MAXITER=10000, iterated_laplacian=2):
     '''
     Minimizes the objective function:
     U = arg min_Y 1/2 ||Y - Yobs||_W^2 + alpha/2 * Y'*L*Y
@@ -66,35 +66,29 @@ def SSL_clustering_AL(alpha, L, Yobs, w,TOL=1e-9,MAXITER=10000):
     :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
     :return:
     '''
+    #TODO Merge this routine with the other clustering routines
     if isinstance(Yobs, torch.Tensor):
         Yobs = Yobs.numpy()
     n,nc = Yobs.shape
     W = diags(w)
-    H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
+    if iterated_laplacian == 1:
+        H_lambda = lambda x: alpha*((L @ x)) + (W @ x)
+    elif iterated_laplacian == 2:
+        H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
+    elif iterated_laplacian == 3:
+        H_lambda = lambda x: alpha*(L @ (L.T @ (L @ x))) + (W @ x)
+    elif iterated_laplacian == 4:
+        H_lambda = lambda x: alpha * (L @ (L @ (L.T @ (L @ x)))) + (W @ x)
+    else:
+        raise ValueError('Not implemented')
     A = LinearOperator((n, n), H_lambda)
     b = W @ Yobs
-    # def precond(x):
-    #     return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
-    # M = LinearOperator(matvec=precond, shape=(n, n), dtype=float)
     U = np.empty_like(Yobs)
     for i in range(nc):
         U[:,i], stat = cg(A, b[:,i], tol=TOL,maxiter=MAXITER)
-    # C = convert_pseudo_to_prob(U,use_softmax=True)
-    # p = np.random.rand(n)
-    # Ccumsum = np.cumsum(C,axis=1)
-    # labels = np.zeros(n,dtype=int)
-    # for i in range(nc-1):
-    #     idx = np.where(Ccumsum[:,i] < p)[0]
-    #     labels[idx] = i+1
-    # #Lets ensure that the known labels have the right value.
-    # idx_known = np.nonzero(w)[0]
-    # C_obs = np.argmax(Yobs,axis=1)
-    # labels[idx_known] = C_obs[idx_known]
-    # U2 = np.zeros_like(U)
-    # U2[np.arange(U2.shape[0]),labels] = 1
     return U
 
-def SSL_clustering_1vsall(alpha, L, Yobs, w, TOL=1e-12):
+def SSL_clustering_1vsall(alpha, L, Yobs, w, TOL=1e-12, iterated_laplacian=2):
     '''
     Minimizes the objective function:
     U = arg min_Y 1/2 ||Y - Yobs||_W^2 + alpha/2 * Y'*L*Y
@@ -112,7 +106,16 @@ def SSL_clustering_1vsall(alpha, L, Yobs, w, TOL=1e-12):
         Yobs = Yobs.numpy()
     n,nc = Yobs.shape
     W = diags(w)
-    H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
+    if iterated_laplacian == 1:
+        H_lambda = lambda x: alpha*((L @ x)) + (W @ x)
+    elif iterated_laplacian == 2:
+        H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
+    elif iterated_laplacian == 3:
+        H_lambda = lambda x: alpha*(L @ (L.T @ (L @ x))) + (W @ x)
+    elif iterated_laplacian == 4:
+        H_lambda = lambda x: alpha * (L @ (L @ (L.T @ (L @ x)))) + (W @ x)
+    else:
+        raise ValueError('Not implemented')
     A = LinearOperator((n, n), H_lambda)
     # def precond(x):
     #     return spsolve(tril(A, format='csc'), (A.diagonal() * spsolve(triu(A, format='csc'), x, permc_spec='NATURAL')), permc_spec='NATURAL')
@@ -175,7 +178,6 @@ def SSL_clustering_sq(alpha, L, Yobs, w):
     # U2 = np.zeros_like(U)
     # U2[np.arange(U2.shape[0]),labels] = 1
     return U
-
 
 
 def convert_pseudo_to_prob(v,use_softmax=False):

@@ -77,7 +77,7 @@ def run_active_learning(net,optimizer,loss_fnc,dataloader_train,dataloader_valid
     idx_learned = list(idxs)
     for i in range(c['epochs_AL']):
         # We use Active learning to find the next batch of data points to label
-        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,c['w'])
+        idx_learned,w = AL_fnc(idx_learned,L,y,w,LOG,c)
 
         # With the data points found, we update the labels in our dataset
         dataloader_train = set_labels(idx_learned, dataloader_train)
@@ -127,7 +127,7 @@ class Adaptive_active_learning():
         self.debug = debug
         super(Adaptive_active_learning, self).__init__()
 
-    def __call__(self, idx_learned,L,yobs,w,LOG,w0):
+    def __call__(self, idx_learned,L,yobs,w,LOG,c):
         idx_learned = set(idx_learned)
         n, nc = yobs.shape
         if self.use_1_vs_all:
@@ -140,7 +140,7 @@ class Adaptive_active_learning():
                 print("Starting clustering")
                 yi = SSL_clustering_AL(self.alpha, L, yi,w,TOL=1e-12)
                 t1 = time.time()
-                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,w0)
+                w = OEDA_v2(w, L, yi, self.alpha, self.beta, self.sigma, self.lr, self.nlabels_pr_class, idx_learned, LOG,c,c['w'])
                 t2 = time.time()
                 idx = np.nonzero(w)[0]
                 yobs[idx,:] = self.plabels[idx,:]
@@ -202,7 +202,7 @@ def update_laplacian(L,y,Lmax,idxs,y_truth,idxs_learned=None):
             L[idxj, idx] = 0
     return L,y,idxs_learned
 
-def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,w0,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
+def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,c,w0,use_stochastic_approximate=True,safety_stop=2000,saveprefix=None,debug=False):
     '''
     Finds the next ns points to learn, according to:
     min_w \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
@@ -226,7 +226,7 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,w0,use_stochastic_appro
         v = np.sign(np.random.normal(0,1,(y.shape[0],1)))
     else:
         v = identity(L.shape[0]).tocsc() #TODO there might be a problem here, test that it works
-    f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v)
+    f,df,bias,dbias,var,dvar,cost,dcost,bias_pp = getOEDA(w,L,y,alpha,beta,sigma,v,c)
     indices = np.argsort(np.abs(df))[::-1]
     i = 0
     idx_excluded = []
@@ -259,8 +259,7 @@ def OEDA_v2(w,L,y,alpha,beta,sigma,lr,ns,idx_learned,LOG,w0,use_stochastic_appro
 
 
 
-
-def getOEDA(w,L,y,alpha,beta,sigma,v):
+def getOEDA(w,L,y,alpha,beta,sigma,v,c):
     '''
     Computes the value and derivatives of:
     f(w) =  \alpha^2 ||H^{-1} L y ||^2 + \sigma^2 \Trace (W H^{-2} W)
@@ -275,20 +274,35 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     '''
     n = y.shape[0]
     W = diags(w)
-    H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
+    m = c['iterated_laplacian']
+    debug = c['mode'] == 'debug'
+    # Ly = np.linalg.matrix_power(L, c['iterated_laplacian']) @ y
+    if m == 1:
+        H_lambda = lambda x: alpha*((L @ x)) + (W @ x)
+        Ly = L @ y
+    elif m == 2:
+        Ly = L @ L @ y
+        H_lambda = lambda x: alpha*(L.T @ (L @ x)) + (W @ x)
+    elif m == 3:
+        Ly = L @ L @ L @ y
+        H_lambda = lambda x: alpha*(L @ (L.T @ (L @ x))) + (W @ x)
+    elif m == 4:
+        Ly =L @ L @ L @ L @ y
+        H_lambda = lambda x: alpha * (L @ (L @ (L.T @ (L @ x)))) + (W @ x)
+    else:
+        raise ValueError('Not implemented')
     H = LinearOperator((n, n), H_lambda)
 
-    # Ly = L @ y
-    bias = cgmatrix(H, L.T @ L @ y,TOL=1e-6, MAXITER=10000, debug=False)
+    bias = cgmatrix(H, Ly,TOL=1e-6, MAXITER=10000, debug=debug)
     biasSq = np.trace(bias.T @ bias)
-    H_bias = cgmatrix(H, bias,TOL=1e-6, MAXITER=10000, debug=False)
+    H_bias = cgmatrix(H, bias,TOL=1e-6, MAXITER=10000, debug=debug)
     dbiasSq = - 2 * np.sum(bias * H_bias,axis=1)
 
     if sigma > 0:
         Wv = W @ v
-        Q = cgmatrix(H, Wv,TOL=1e-12, MAXITER=10000, debug=False)
+        Q = cgmatrix(H, Wv,TOL=1e-12, MAXITER=10000, debug=debug)
         var = np.trace(Q.T @ Q)
-        H_Q = cgmatrix(H, Q,TOL=1e-6, MAXITER=10000, debug=False)
+        H_Q = cgmatrix(H, Q,TOL=1e-6, MAXITER=10000, debug=debug)
         dvar = np.squeeze(np.array((2 * np.sum((v-Q)*H_Q,axis=1))))
     else:
         var = 0
@@ -302,6 +316,7 @@ def getOEDA(w,L,y,alpha,beta,sigma,v):
     f = alpha**2 * biasSq + sigma**2 * var + beta * cost
     df = alpha**2 * dbiasSq + sigma**2 * dvar + dcost
     return f,df,biasSq,dbiasSq,var,dvar,cost,dcost, bias
+
 
 def cgmatrix(A,B,TOL=1e-08,MAXITER=None,M=None,x0=None,callback=None,ATOL=None,debug=False):
     '''

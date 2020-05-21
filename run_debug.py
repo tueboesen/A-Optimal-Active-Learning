@@ -6,6 +6,7 @@ context = {
     'seed': 123557,                                         #Seed for reproduceability
     'basename': os.path.basename(__file__).split(".")[0],   #Names the folder after this filename
     'nrepeats': 3,                                          #Sets how many times the code should be repeated
+    'mode': 'debug',                                        #Different modes
     #Determines which type of learning to test:
     'AL_methods': {
         'active_learning_bayesian': False,  # Bayesian active learning
@@ -22,14 +23,16 @@ context = {
     'batch_size': 16,
     'use_1_vs_all_dataset': -1,                              #If negative the 1_vs_all_dataset is not used, otherwise the selected number will be pitched against all other labels
     #Supervised learning
-    'use_SL': True,
+    'use_SL': False,
     'epochs_SL': 3,                                         #Epochs for supervised learning
     'lr': 1e-2,
     'loss_type': 'MSE',                                     #Options are MSE and CE
     'network': 'resnet',
+    'use_covariance': False,
     # Grap Laplacian
     'metric': 'l2',  # 'l2' or 'cosine'
     'knn': 10,  # Number of nearest neighbours
+    'iterated_laplacian': 2,  # which order of iterated laplacian to use
 
     #Active learning
     'epochs_AL': 2,                                        #Iterations to use in Active learning

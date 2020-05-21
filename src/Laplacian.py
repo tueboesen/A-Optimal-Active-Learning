@@ -107,7 +107,7 @@ def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
     t3 = time.time()
     print('ANN = {}'.format(t2-t1))
     print('L = {}'.format(t3-t2))
-    return L_sym,A
+    return L,A
 
 
 
