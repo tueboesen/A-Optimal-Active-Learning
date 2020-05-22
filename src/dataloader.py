@@ -5,10 +5,21 @@ import random
 
 import numpy as np
 import torch
+import torch.utils.data as data_utils
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
+
+def select_dataset(dataset,batch_size,nsamples,device):
+    if dataset == 'mnist':
+        dl_train, dl_test = Load_MNIST(batch_size=batch_size, nsamples=nsamples, device=device,
+                                             order_data=True, use_1_vs_all=True)
+    elif dataset == 'circles':
+        dl_train, dl_test = Load_circles(batch_size=batch_size, nsamples=nsamples, device=device)
+    else:
+        raise NotImplementedError("Selected dataset: {}, has not been implemented yet.".format(dataset))
+    return dl_train,dl_test
 
 class Dataset_preload_with_label_prob(Dataset):
     '''
@@ -16,11 +27,12 @@ class Dataset_preload_with_label_prob(Dataset):
     This is of course slower than just loading one of the two, but should not be that much slower.
     zero_center_label_probabilities: makes the label probabilities obey the constraint ye=0, where y is the label probabilities.
     '''
-    def __init__(self, dataset, device='cpu', nsamples=-1,order_data=False,zero_center_label_probabilities=True,use_1_vs_all=-1):
+    def __init__(self, dataset, nsamples=-1,zero_center_label_probabilities=True,name=''):
         imgs = []
         self.labels = []
-        self.device = device
+        self.islabeled = []
         self.zero_center_label_probabilities= zero_center_label_probabilities
+        self.name = name
         for (img,label) in dataset:
             imgs.append(img)
             self.labels.append(label)
@@ -28,28 +40,21 @@ class Dataset_preload_with_label_prob(Dataset):
                 break
 
         self.imgs = torch.stack(imgs)
-        if order_data:
-            idxs = np.argsort(self.labels)
-            self.imgs = self.imgs[idxs,:]
-            self.labels = list(np.asarray(self.labels)[idxs])
         n = len(self.labels)
-        if use_1_vs_all >= 0:
-            ls = use_1_vs_all
-            assert (ls in set(np.unique(self.labels))), "the label you have selected for use_1_vs_all_dataset is not a valid label. You selected {}, but the labels are {}".format(ls,set(np.unique(self.labels)))
-            idxs = np.where(self.labels == np.float32(ls))[0]
-            self.labels[:] = [1]*n
-            for idx in idxs:
-                self.labels[idx] = 0
 
         nc = len(np.unique(self.labels))
         self.nc = nc
         self.labels_true = copy.deepcopy(self.labels)
-        plabels = torch.zeros(n,nc)
-        plabels[torch.arange(plabels.shape[0]),self.labels] = 1
         if zero_center_label_probabilities:
+            plabels = torch.zeros(n, nc)
+            plabels[torch.arange(plabels.shape[0]),self.labels] = 10
             plabels = plabels - torch.mean(plabels,dim=1)[:,None]
+        else:
+            plabels = -torch.ones(n, nc)
+            plabels[torch.arange(plabels.shape[0]), self.labels] = 1
         self.plabels = plabels
         self.plabels_true = copy.deepcopy(self.plabels)
+        self.islabeled = np.full(n, False)
 
     def __getitem__(self, index):
         img = self.imgs[index]
@@ -80,8 +85,8 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,downl
     MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=download)
     MNISTtestset = torchvision.datasets.MNIST(root='../data', train=False, transform=trans)
 
-    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data,use_1_vs_all=use_1_vs_all)
-    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,device=device)
+    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data,use_1_vs_all=use_1_vs_all,name='mnist',zero_center_label_probabilities=False)
+    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,device=device,name='mnist',zero_center_label_probabilities=False)
 
     MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,
                                               shuffle=True, num_workers=0)
@@ -135,9 +140,143 @@ def set_labels(idx,dataloader,class_balance=False,remove_all_unknown_labels=True
         dataloader.dataset.plabels = torch.from_numpy(idx).float()
         return dataloader
     if remove_all_unknown_labels:
+        dataloader.dataset.islabeled[:] = False
         dataloader.dataset.plabels[:,:] = 0
         dataloader.dataset.labels[:] = [-1] * len(dataloader.dataset)
     for i in idx:
+        dataloader.dataset.islabeled[i] = True
         dataloader.dataset.labels[i] = dataloader.dataset.labels_true[i]
         dataloader.dataset.plabels[i] = dataloader.dataset.plabels_true[i]
-    return dataloader
+    return dataloader,idx
+
+
+def Load_circles(batch_size=100,nsamples=2500, device ='cpu'):
+    """
+
+    :param zones: (2xn array, which specifies circle-rings in which the data can lie)
+    :param nsamples:  Maximum number of samples generated, will in practice be less.
+    :param noiseratio: The ratio of noise points to samplepoints, 0 means no noise.
+    :return:
+    """
+    nsamples_train = [round(nsamples/6), round(nsamples/3), round(nsamples/2)]
+    radial_centers = [0 , 1.5, 3]
+    decay_length = [0.3, 0.3 , 0.3]
+
+    # nsamples_train = [round(nsamples/10), round(9*nsamples/10)]
+    # radial_centers = [0 , 3]
+    # decay_length = [0.3, 0.3]
+
+    trainset = CreateCircleDataset(radial_centers,nsamples_train,decay_length,return_tensor=True)
+    train_data = Dataset_preload_with_label_prob(trainset, nsamples=nsamples, name='circles')
+    dl_train = torch.utils.data.DataLoader(train_data, batch_size=batch_size,shuffle=True, num_workers=0)
+
+    nsamples = 1000
+    nsamples_test = [round(nsamples/6), round(nsamples/3), round(nsamples/2)]
+    radial_centers = [0 , 1, 3]
+    decay_length = [0.1, 0.2 , 0.5]
+    testset = CreateCircleDataset(radial_centers,nsamples_test,decay_length,return_tensor=True)
+    test_data = Dataset_preload_with_label_prob(testset, nsamples=nsamples, name='circles')
+    dl_test = torch.utils.data.DataLoader(test_data, batch_size=batch_size,shuffle=True, num_workers=0)
+
+    return dl_train,dl_test
+
+def relabel_dataset(dataset,known_labels_from_each):
+    features = dataset[0]
+    targets_truth = dataset[1]
+    dt = targets_truth.dtype
+    targets_clean = [i for i in targets_truth if i != -1]
+    targets_unique = np.unique(targets_clean)
+    idxs = []
+    for target in targets_unique:
+        idx = np.where(targets_truth == target)[0]
+        assert len(idx) >= known_labels_from_each
+        np.random.shuffle(idx)
+        idxs.append(idx[0:known_labels_from_each])
+    targets = - np.ones_like(targets_truth,dtype=dt)
+    for idx in idxs:
+        targets[idx] = targets_truth[idx]
+    dataset = (features, targets)
+    return dataset, targets_truth
+
+def CreateCircleDataset(radial_centers,nsamples,decay_length,return_tensor=False):
+    features_circle,target_circle = CreateGaussianCircles(radial_centers, decay_length, nsamples)
+    if return_tensor:
+        features_circle = torch.from_numpy(features_circle)
+    dataset = zip(features_circle, target_circle)
+    return dataset
+
+def CreateCircles(zones,nsamples):
+    """
+
+    :param zones: (2xn array, which specifies circle-rings in which the data can lie)
+    :param nsamples: Maximum number of samples generated, will in practice be less.
+    :return:
+    """
+
+    ma=np.max(zones)
+    position = np.empty((nsamples,2), dtype=np.single)
+    target = np.empty(nsamples,dtype=np.int64)
+    ctn = 0
+    finished = False
+    while not finished:
+        x = ma * np.random.randn(nsamples, 1)
+        y = ma * np.random.randn(nsamples, 1)
+        r = x * x + y * y
+        for i, zone in enumerate(zones):
+            if finished:
+                break
+            idx = ((r > pow(zone[0], 2)) & (r < pow(zone[1], 2)))
+            for (xi, yi) in zip(x[idx], y[idx]):
+                position[ctn, :] = [xi, yi]
+                target[ctn] = i
+                ctn += 1
+                if ctn == nsamples:
+                    finished = True
+                    break
+    return position, target
+
+def CreateGaussianCircles(radial_centers,decay_length,nsamples):
+    """
+    Creates gaussian circledisc
+    :param zones: (2xn array, which specifies circle-rings in which the data can lie)
+    :param nsamples: Maximum number of samples generated, will in practice be less.
+    :return:
+    """
+
+    def cart2pol(x, y):
+        rho = np.sqrt(x ** 2 + y ** 2)
+        phi = np.arctan2(y, x)
+        return (rho, phi)
+
+    def pol2cart(rho, phi):
+        x = rho * np.cos(phi)
+        y = rho * np.sin(phi)
+        return (x, y)
+
+    ncircles = len(radial_centers)
+    nsamples_tot = sum(nsamples)
+    features = np.zeros((nsamples_tot,2),dtype=np.float32)
+    target = np.zeros(nsamples_tot,dtype=np.int)
+    idx0 = 0
+    idx1 = 0
+    for i in range(ncircles):
+        r = radial_centers[i] + (-1)**np.random.randint(0,1) * decay_length[i] *(np.random.randn(nsamples[i], 1))
+        angle = 2*np.pi*np.random.rand(nsamples[i],1)
+        x,y = pol2cart(r,angle)
+        idx1 += nsamples[i]
+        features[idx0:idx1,0] = np.squeeze(x)
+        features[idx0:idx1,1] = np.squeeze(y)
+        target[idx0:idx1] = i
+        idx0 = idx1
+    return features,target
+
+
+
+def AddNoise(X,ns):
+    Xmin=np.min(X)
+    Xmax=np.max(X)
+    Xmean=(Xmax-Xmin)/2
+    position = 2*Xmean*np.random.rand(ns,2)-Xmean
+    position = position.astype(np.single)
+    target = - np.ones((len(position)), dtype=np.int64)
+    return position, target

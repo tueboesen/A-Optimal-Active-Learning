@@ -2,14 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-# def CrossEntropyLoss_weighted(target=None, input=None, point_weight=1):
-#     loss_fnc_soft = nn.CrossEntropyLoss(reduction='none',ignore_index=-1)
-#     #however if we do not want the softmax normalization, then we need to use our custom norm, and then do NLLLoss, (maximum log likelihood)
-#     loss_fnc = nn.NLLLoss(reduction='none',ignore_index=-1)
-#     loss = point_weight * loss_fnc(norm(input), target)
-#     return loss
-
 def select_loss_fnc(loss_type,use_probabilities=False):
     '''
     Selects the type of loss function to use. Choices are currently Cross-entropy or Mean-Square-Estimate.
@@ -56,7 +48,7 @@ class cross_entropy_probabilities(torch.nn.Module):
 class MSE_custom(torch.nn.Module):
     '''
     This class works just like the normal MSE loss function, with the extra option of using reduction='sum_to_samples'
-    which sums over all other dimension and reduce the dimension down to the number of samples.
+    which sums over all other dimension and reduce the dimension down to the number of samples. Which is useful if you want to put individual weight on each point.
     '''
     def __init__(self,reduction='sum_to_samples'):
         self.reduction = reduction

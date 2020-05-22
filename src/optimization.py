@@ -1,6 +1,7 @@
 import time
 
 import matplotlib
+
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
@@ -9,7 +10,7 @@ import torch
 import torchvision
 
 
-def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_validate=None,epochs=100,weights=None, use_probabilities=True):
+def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_test=None,epochs=100,use_probabilities=True):
     '''
     Standard training routine.
     :param net: Network to train
@@ -18,18 +19,14 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
     :param loss_fnc: loss function to use
     :param LOG: LOG file handler to print to
     :param device: device to perform computation on
-    :param dataloader_validate: Dataloader to test the accuracy on after each epoch.
+    :param dataloader_test: Dataloader to test the accuracy on after each epoch.
     :param epochs: Number of epochs to train
-    :param weights: The weights for all datapoint
     :param use_probabilities: If False the target will be one-hot, otherwise it will be some kind of probability array (might be zero centered)
     :return:
     '''
-    if isinstance(weights,np.ndarray):
-        weights = ((torch.from_numpy(weights)).float()).to(device)
-    if weights is None:
-        weights = torch.ones(len(dataloader_train.dataset)).to(device)
     net.to(device)
     t0 = time.time()
+    accuracy = 0
     for epoch in range(epochs):
         loss_epoch = 0
         for i, (images, labels, plabels, idxs) in enumerate(dataloader_train):
@@ -41,16 +38,16 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_va
                 target = labels.to(device)
             optimizer.zero_grad()
             outputs = net(images)
-            loss = (weights[idxs] * loss_fnc(outputs, target)).mean()
+            loss = loss_fnc(outputs, target).mean()
             loss.backward()
             optimizer.step()
             loss_epoch += loss.item()
-        if dataloader_validate is not None:
+        if dataloader_test is not None:
             net.eval()
             with torch.no_grad():
                 correct = 0
                 total = 0
-                for images_v, labels_v,_,_ in dataloader_validate:
+                for images_v, labels_v,_,_ in dataloader_test:
                     images_v = images_v.to(device)
                     labels_v = labels_v.to(device)
                     outputs_v = net(images_v)

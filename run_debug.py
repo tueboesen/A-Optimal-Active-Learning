@@ -1,52 +1,51 @@
+import argparse
 import os
 
 from src.main import main
 
-context = {
-    'seed': 123557,                                         #Seed for reproduceability
-    'basename': os.path.basename(__file__).split(".")[0],   #Names the folder after this filename
-    'nrepeats': 3,                                          #Sets how many times the code should be repeated
-    #Determines which type of learning to test:
-    'AL_methods': {
-        'active_learning_bayesian': False,  # Bayesian active learning
-        'active_learning_adaptive': True,  # Adaptive active learning
-        'passive_learning': True,  # Passive learning with randomly selected points
-        'passive_learning_balanced': True,  # Passive learning with class balanced selection of points
-    },
-    #Dataset
-    'nsamples': 1000,                                        #Number of samples in dataset
-    'order_dataset': True,                                  #Orders the samples in dataset by class (they still get shuffled when used by a dataloader)
-    'nlabels': 20,                                           #Number of labels to start with in an adaptive scheme
-    'use_label_probabilities': True,                        #Switch the labels from onehot to a probabilities
-    'batch_size': 16,
-    'use_1_vs_all_dataset': 0,                              #If negative the 1_vs_all_dataset is not used, otherwise the selected number will be pitched against all other labels
-    #Supervised learning
-    'use_SL': False,
-    'epochs_SL': 3,                                         #Epochs for supervised learning
-    'lr': 1e-2,
-    'loss_type': 'MSE',                                     #Options are MSE and CE
-    # Grap Laplacian
-    'metric': 'l2',  # 'l2' or 'cosine'
-    'knn': 50,  # Number of nearest neighbours
+parser = argparse.ArgumentParser(description='A-Optimal Active Learning')
 
-    #Active learning
-    'epochs_AL': 3,                                        #Iterations to use in Active learning
-    'lr_AL': 1e-3,
-    'nlabels_pr_class': 2,                                  #Number of labels to learn in each iteration
-    'alpha': 0.1,
-    'sigma': 1,
-    'beta': 100,
-    'use_1_vs_all': True,
-    'recompute_L': True,                                    #Switch features to the output from the network and recompute it each iteration.
+#General
+parser.add_argument('--seed', default=123557, type=int, metavar='N',help='seed number')
+parser.add_argument('--basefolder', default=os.path.basename(__file__).split(".")[0], type=str, metavar='N',help='Basefolder where results are saved')
+parser.add_argument('--nrepeats', default=1, type=int, metavar='N',help='Number of times the code will be rerun')
+parser.add_argument('--mode', default='fast', type=str, metavar='N',help='Mode to run in (debug,fast,paper)')
+#Data
+parser.add_argument('--dataset', default='circles', type=str, metavar='N',help='Name of dataset to run, currently implemented: "circles","mnist"')
+parser.add_argument('--nsamples', default=1000, type=int, metavar='N',help='Number of datasamples')
+parser.add_argument('--nlabels', default=20, type=int, metavar='N',help='Number of labels to start with')
+parser.add_argument('--initial-labeling-mode', default='balanced', type=str, metavar='N',help='Modes for selecting initial labeled points (balanced,random,bayesian)')
+parser.add_argument('--batch-size', default=16, type=int, metavar='N',help='batch size used in dataloader')
+#Feature Transform
+parser.add_argument('--feature-transform', default='', type=str, metavar='N',help='Type of feature transform to use on data before computing graph Laplacian')
+#Graph Laplacian
+parser.add_argument('--L-metric', default='l2', type=str, metavar='N',help='Type of metric the graph Laplacian is computed with (l2,cosine)')
+parser.add_argument('--L-knn', default=10, type=int, metavar='N',help='Number of nearest neighbours to include in L')
+parser.add_argument('--L-tau', default=1e-2, type=float, metavar='N',help='Hyperparameter in the computation of the regularization =(L + tau*I)^eta')
+parser.add_argument('--L-eta', default=2, type=int, metavar='N',help='Hyperparameter in the computation of the regularization =(L + tau*I)^eta')
+#Active Learning
+parser.add_argument('--AL-types', default=0, type=float, metavar='N',help='Hyperparameter (not used in the current implementation)')
+parser.add_argument('--AL-iterations', default=3, type=int, metavar='N',help='Number of active learning iterations to run')
+parser.add_argument('--AL-nlabels-pr-class', default=3, type=int, metavar='N',help='Number of data points to label for each class iteration')
+parser.add_argument('--AL-alpha', default=1, type=float, metavar='N',help='Hyperparameter')
+parser.add_argument('--AL-beta', default=0, type=float, metavar='N',help='Hyperparameter (not used in the current implementation)')
+parser.add_argument('--AL-sigma', default=1e-2, type=float, metavar='N',help='Hyperparameter')
+parser.add_argument('--AL-w0', default=1e6, type=float, metavar='N',help='Hyperparameter, sets the weight of each labeled datapoint to this value')
+#Learning
+parser.add_argument('--SL-epochs', default=0, type=int, metavar='N',help='Number of epochs to train the network')
+parser.add_argument('--SL-network', default='resnet', type=str, metavar='N',help='select the neural network to train (resnet)')
+parser.add_argument('--SL-loss-type', default='MSE', type=str, metavar='N',help='Loss type for network, (MSE or CE)')
 
-    #Auto encoder
-    'use_AE': True,                                        #Use an autoencoder to generate an encoded feature space
-    'load_AE': '',#'results/autoencoders/10000_linear_10D/autoencoder.pt',
-    'epochs_AE': 0,
-    'lr_AE': 1e-3,
-    'network_AE': 'linear',                                 #Options are 'conv','linear'
-    'decode_dim': 10,                                       #When network is linear this determines the dimension of the encoded space.
-}
 
-losses = main(context)
+
+AL_methods = {
+    'active_learning_bayesian': False,  # Bayesian active learning
+    'active_learning_adaptive': True,  # Adaptive active learning
+    'passive_learning': True,  # Passive learning with randomly selected points
+    'passive_learning_balanced': True,  # Passive learning with class balanced selection of points
+              }
+args = parser.parse_args()
+# state = {k: v for k, v in args._get_kwargs()}
+args.AL_methods = AL_methods
+losses = main(args)
 
