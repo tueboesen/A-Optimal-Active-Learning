@@ -85,14 +85,11 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,downl
     MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=download)
     MNISTtestset = torchvision.datasets.MNIST(root='../data', train=False, transform=trans)
 
-    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,device=device,order_data=order_data,use_1_vs_all=use_1_vs_all,name='mnist',zero_center_label_probabilities=False)
-    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,device=device,name='mnist',zero_center_label_probabilities=False)
+    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False)
+    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False)
 
-    MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,
-                                              shuffle=True, num_workers=0)
-
-    MNIST_test = torch.utils.data.DataLoader(MNISTtestset_pre, batch_size=batch_size,
-                                             shuffle=False, num_workers=0)
+    MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,shuffle=True, num_workers=0)
+    MNIST_test = torch.utils.data.DataLoader(MNISTtestset_pre, batch_size=batch_size,shuffle=False, num_workers=0)
     return MNIST_train, MNIST_test
 
 def set_labels(idx,dataloader,class_balance=False,remove_all_unknown_labels=True):
