@@ -12,7 +12,7 @@ parser.add_argument('--nrepeats', default=1, type=int, metavar='N',help='Number 
 parser.add_argument('--mode', default='fast', type=str, metavar='N',help='Mode to run in (debug,fast,paper)')
 #Data
 parser.add_argument('--dataset', default='mnist', type=str, metavar='N',help='Name of dataset to run, currently implemented: "circles","mnist"')
-parser.add_argument('--nsamples', default=60000, type=int, metavar='N',help='Number of datasamples')
+parser.add_argument('--nsamples', default=1000, type=int, metavar='N',help='Number of datasamples')
 parser.add_argument('--nlabels', default=10, type=int, metavar='N',help='Number of labels to start with')
 parser.add_argument('--initial-labeling-mode', default='balanced', type=str, metavar='N',help='Modes for selecting initial labeled points (balanced,random,bayesian)')
 parser.add_argument('--batch-size', default=16, type=int, metavar='N',help='batch size used in dataloader')
@@ -20,7 +20,10 @@ parser.add_argument('--binary', default=[], type=list, metavar='N',help='A list 
 # parser.add_argument('--binary', default=[[6],[7]], type=list, metavar='N',help='A list of length 2 with the labels in the 1 vs labels in the second 2, empty list will cancel binary')
 # parser.add_argument('--binary', default=[[1,3,5,7,9],[0,2,4,6,8]], type=list, metavar='N',help='A list of length 2 with the labels in the 1 vs labels in the second 2, empty list will cancel binary')
 #Feature Transform
-parser.add_argument('--feature-transform', default='', type=str, metavar='N',help='Type of feature transform to use on data before computing graph Laplacian')
+parser.add_argument('--feature-transform', default='autoencoder', type=str, metavar='N',help='Type of feature transform to use on data before computing graph Laplacian')
+parser.add_argument('--FT-load', default='results/autoencoder/60000_50d/autoencoder.pt', type=str, metavar='N',help='Path to load feature transform from')
+parser.add_argument('--FT-decode-dim', default=50, type=int, metavar='N',help='Dimension of latent feature space')
+parser.add_argument('--FT-network', default='linear', type=str, metavar='N',help='Network used to perform feature transform')
 #Graph Laplacian
 parser.add_argument('--L-metric', default='l2', type=str, metavar='N',help='Type of metric the graph Laplacian is computed with (l2,cosine)')
 parser.add_argument('--L-knn', default=10, type=int, metavar='N',help='Number of nearest neighbours to include in L')

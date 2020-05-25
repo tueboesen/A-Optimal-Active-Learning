@@ -1,6 +1,14 @@
+import torch.nn as nn
+import torch.optim as optim
 
-def select_feature_transform(mode,dataloader,c):
-    if mode == 'autoencoder':
+from src.IO import load_autoencoder, save_state
+from src.networks_ae import select_network
+from src.optimization import train_AE
+from src.utils import determine_network_param
+
+
+def select_feature_transform(dataloader,c):
+    if c.feature_transform == 'autoencoder':
         if c.FT_load:
             c.LOG.info("Loading autoencoder from file: {}".format(c.FT_load))
             netAE, features = load_autoencoder(c.FT_load, c.LOG, c.nsamples, c.FT_decode_dim, c.FT_network,
@@ -25,9 +33,8 @@ def select_feature_transform(mode,dataloader,c):
                      'autoencoder_state': netAE.state_dict()}
             save_state(state, "{}/{}.pt".format(c.result_dir,
                                                 'autoencoder'))  # We save the trained autoencoder and the encoded space, as well as some characteristica of the network and samples used to train it.
-        raise NotImplementedError("Selected feature_transform: {}, has not been implemented yet.".format(mode))
     else:
-        raise NotImplementedError("Selected feature_transform: {}, has not been implemented yet.".format(mode))
+        raise NotImplementedError("Selected feature_transform: {}, has not been implemented yet.".format(c.feature_transform))
     return features
 
 

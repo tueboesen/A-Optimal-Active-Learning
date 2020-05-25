@@ -46,7 +46,7 @@ def main(c):
     if c.feature_transform == '':
         features = dl_train.dataset.imgs
     else:
-        features = select_feature_transform(c.feature_transform,dl_train)
+        features = select_feature_transform(dl_train,c)
 
     # Calculate Laplacian
     L,A = compute_laplacian(features, metric=c.L_metric, knn=c.L_knn, union=True)
