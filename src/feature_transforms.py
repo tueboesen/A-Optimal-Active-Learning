@@ -1,6 +1,30 @@
 
-def select_feature_transform(mode,dataloader,load_from_file=None):
+def select_feature_transform(mode,dataloader,c):
     if mode == 'autoencoder':
+        if c.FT_load:
+            c.LOG.info("Loading autoencoder from file: {}".format(c.FT_load))
+            netAE, features = load_autoencoder(c.FT_load, c.LOG, c.nsamples, c.FT_decode_dim, c.FT_network,
+                                               dataloader, c.device)
+            c.LOG.info("Autoencoder loaded.")
+        else:
+            c.LOG.info("Setting up and training an autoencoder...")
+            netAE = select_network(c.FT_network, c.FT_decode_dim)
+            c.LOG.info('Number of parameters in autoencoder: {}'.format(determine_network_param(netAE)))
+            lr = 1e-3
+            optimizerAE = optim.Adam(list(netAE.parameters()), lr=lr, weight_decay=1e-5)
+            loss_fnc_ae = nn.MSELoss(reduction='sum')  # Loss function for autoencoder should always be MSE
+            netAE, features = train_AE(netAE, optimizerAE, dataloader, loss_fnc_ae, c.LOG, device=c.device,
+                                       epochs=c.FT_epochs, save="{}/{}.png".format(c.result_dir, 'autoencoder'))
+            state = {'features': features,
+                     'epochs_AE': c.FT_epochs,
+                     'nsamples': c.nsamples,
+                     'decode_dim': c.FT_decode_dim,
+                     'lr_AE': lr,
+                     'npar_AE': determine_network_param(netAE),
+                     'result_dir': c.result_dir,
+                     'autoencoder_state': netAE.state_dict()}
+            save_state(state, "{}/{}.pt".format(c.result_dir,
+                                                'autoencoder'))  # We save the trained autoencoder and the encoded space, as well as some characteristica of the network and samples used to train it.
         raise NotImplementedError("Selected feature_transform: {}, has not been implemented yet.".format(mode))
     else:
         raise NotImplementedError("Selected feature_transform: {}, has not been implemented yet.".format(mode))
