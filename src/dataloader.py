@@ -11,12 +11,13 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
 
-def select_dataset(dataset,batch_size,nsamples,device):
+def select_dataset(dataset,batch_size,nsamples,device,binary):
     if dataset == 'mnist':
-        dl_train, dl_test = Load_MNIST(batch_size=batch_size, nsamples=nsamples, device=device,
-                                             order_data=True, use_1_vs_all=True)
+        dl_train, dl_test = Load_MNIST(batch_size=batch_size, nsamples=nsamples,binary=binary)
     elif dataset == 'circles':
-        dl_train, dl_test = Load_circles(batch_size=batch_size, nsamples=nsamples, device=device)
+        dl_train, dl_test = Load_circles(batch_size=batch_size, nsamples=nsamples)
+    elif dataset == 'cifar10':
+        dl_train, dl_test = Load_CIFAR10(batch_size=batch_size, nsamples=nsamples)
     else:
         raise NotImplementedError("Selected dataset: {}, has not been implemented yet.".format(dataset))
     return dl_train,dl_test
@@ -27,7 +28,7 @@ class Dataset_preload_with_label_prob(Dataset):
     This is of course slower than just loading one of the two, but should not be that much slower.
     zero_center_label_probabilities: makes the label probabilities obey the constraint ye=0, where y is the label probabilities.
     '''
-    def __init__(self, dataset, nsamples=-1,zero_center_label_probabilities=True,name=''):
+    def __init__(self, dataset, nsamples=-1,zero_center_label_probabilities=True,name='',binary=[]):
         imgs = []
         self.labels = []
         self.islabeled = []
@@ -36,12 +37,27 @@ class Dataset_preload_with_label_prob(Dataset):
         for (img,label) in dataset:
             imgs.append(img)
             self.labels.append(label)
-            if len(imgs) == nsamples:
+            if len(imgs) == nsamples and (binary == []):
                 break
 
         self.imgs = torch.stack(imgs)
-        n = len(self.labels)
+        if binary != []: #This is used if we only want to use a subset of the images in a binary classification
+            idx_used = []
+            assert len(binary) == 2
+            labels = copy.deepcopy(self.labels)
+            for i,group_i in enumerate(binary):
+                for class_i in group_i:
+                    idxs = np.where(labels == np.float32(class_i))[0]
+                    idx_used.append(idxs)
+                    for idx in idxs:
+                        self.labels[idx] = i
 
+            flat_idx_used = [item for sublist in idx_used for item in sublist]
+            np.random.shuffle(flat_idx_used)
+            idx_selected = flat_idx_used[:nsamples]
+            self.imgs = self.imgs[idx_selected]
+            self.labels = list(np.asarray(self.labels)[idx_selected])
+        n = len(self.labels)
         nc = len(np.unique(self.labels))
         self.nc = nc
         self.labels_true = copy.deepcopy(self.labels)
@@ -65,7 +81,7 @@ class Dataset_preload_with_label_prob(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,download=True,use_1_vs_all=-1):
+def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,download=True,use_1_vs_all=-1,binary=[]):
     '''
     Loads MNIST dataset into the pytorch dataloader structure
 
@@ -85,12 +101,47 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,downl
     MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=download)
     MNISTtestset = torchvision.datasets.MNIST(root='../data', train=False, transform=trans)
 
-    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False)
-    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False)
+    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False,binary=binary)
+    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False,binary=binary)
 
     MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,shuffle=True, num_workers=0)
     MNIST_test = torch.utils.data.DataLoader(MNISTtestset_pre, batch_size=batch_size,shuffle=False, num_workers=0)
     return MNIST_train, MNIST_test
+
+def Load_CIFAR10(batch_size=1000,nsamples=-1, download=True):
+    # transforms to apply to the data
+    trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616))])
+
+    dataset_train = torchvision.datasets.CIFAR10(root='../data', train=True, transform=trans, download=download)
+    dataset_test = torchvision.datasets.CIFAR10(root='../data', train=False, transform=trans)
+
+    binary_classes = [[0,1,8,9],[2,3,4,5,6,7]] #Split the cifar classes in stuff that is natural vs machines
+
+    dataset_train_pre = Dataset_preload_with_label_prob(dataset_train,nsamples=nsamples,name='cifar10',zero_center_label_probabilities=False,binary=binary_classes)
+    dataset_test_pre = Dataset_preload_with_label_prob(dataset_test,nsamples=nsamples,name='cifar10',zero_center_label_probabilities=False,binary=binary_classes)
+
+    dataloader_train = torch.utils.data.DataLoader(dataset_train_pre, batch_size=batch_size,shuffle=True, num_workers=0)
+    dataloader_test = torch.utils.data.DataLoader(dataset_test_pre, batch_size=batch_size,shuffle=False, num_workers=0)
+    return dataloader_train, dataloader_test
+
+    # base_dataset = torchvision.datasets.CIFAR10(root, train=True, download=download)
+    # train_labeled_idxs, train_unlabeled_idxs, val_idxs = train_val_split(base_dataset.targets, int(n_labeled / 10),
+    #                                                                      nsamples=nsamples)
+    #
+    # train_labeled_dataset = CIFAR10_labeled(root, train_labeled_idxs, train=True, transform=transform_train)
+    # train_unlabeled_dataset = CIFAR10_unlabeled(root, train_unlabeled_idxs, train=True,
+    #                                             transform=TransformTwice(transform_train))
+    # train_all_dataset = CIFAR10_labeled(root, train_labeled_idxs + train_unlabeled_idxs, train=True,
+    #                                     transform=transform_val)
+    # val_dataset = CIFAR10_labeled(root, val_idxs, train=True, transform=transform_val, download=True)
+    # test_dataset = CIFAR10_labeled(root, train=False, transform=transform_val, download=True)
+    #
+    # print(f"#Labeled: {len(train_labeled_idxs)} #Unlabeled: {len(train_unlabeled_idxs)} #Val: {len(val_idxs)}")
+    # return train_labeled_dataset, train_unlabeled_dataset, val_dataset, test_dataset, train_all_dataset
+    #
+
+
+
 
 def set_labels(idx,dataloader,class_balance=False,remove_all_unknown_labels=True):
     '''

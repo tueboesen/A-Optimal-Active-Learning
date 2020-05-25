@@ -40,7 +40,7 @@ def main(c):
         c.LOG.info("{:30s} : {}".format(key, value))
 
     # Load Dataset
-    dl_train,dl_test = select_dataset(c.dataset,c.batch_size,c.nsamples,c.device)
+    dl_train,dl_test = select_dataset(c.dataset,c.batch_size,c.nsamples,c.device,c.binary)
 
     # Transform features?
     if c.feature_transform == '':
@@ -64,11 +64,12 @@ def main(c):
         for j,(method_name, method_val) in enumerate(c.AL_methods.items()):
             if method_val:
                 c.LOG.info('Date:{}, Starting:{}, iteration:{}...'.format(datetime.now(),method_name,i))
-                dl_train,idx_labels = initial_labeling(c.initial_labeling_mode,c.nlabels,dl_train)
-                idx_labels, y_pred, result = run_active_learning(method_name,dl_train.dataset.plabels_true.numpy(),idx_labels,L,c)
-
                 net = select_network(c.SL_network, dl_train.dataset.nc,c.LOG)
                 optimizer = optim.SGD(list(net.parameters()), lr=5e-3,weight_decay=1e-5, momentum=0.9)
+
+                dl_train,idx_labels = initial_labeling(c.initial_labeling_mode,c.nlabels,dl_train)
+                idx_labels, y_pred, result = run_active_learning(method_name,dl_train.dataset.plabels_true.numpy(),idx_labels,L,c,net=net,optimizer=optimizer,dl_train=dl_train,dl_test=dl_test,loss_fnc=loss_fnc)
+
                 dl_train = set_labels(y_pred,dl_train)
                 net, result['test_acc'] = train(net, optimizer, dl_train, loss_fnc, c.LOG, device=c.device,
                                              dataloader_test=dl_test,

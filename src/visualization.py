@@ -7,6 +7,8 @@ def select_preview(dataset,dataloader,save=None):
         pass
     elif dataset == 'circles':
         preview_circles(dataloader,save=save)
+    elif dataset == 'cifar10':
+        pass
     else:
         raise NotImplementedError("Selected dataset: {}, has not been implemented yet.".format(dataset))
     return

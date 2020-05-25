@@ -6,6 +6,7 @@ from scipy.sparse import identity
 from src.Clustering import SSL_clustering
 from src.active_learning_adaptive import run_active_learning_adaptive
 from src.dataloader import set_labels
+from src.optimization import train
 from src.passive_learning import run_passive_learning
 from src.report import analyse_probability_matrix
 from src.results import setup_result, update_result
@@ -22,7 +23,7 @@ def initial_labeling(mode,nlabels,dataloader):
         raise NotImplementedError("{} has not been implemented in function {}".format(mode,inspect.currentframe().f_code.co_name))
     return dataloader,idx
 
-def run_active_learning(mode,y,idx_labels,L,c):
+def run_active_learning(mode,y,idx_labels,L,c,dl_train=None,dl_test=None,net=None,optimizer=None,loss_fnc=None):
     n,nc = y.shape
     result = setup_result()
 
@@ -42,6 +43,16 @@ def run_active_learning(mode,y,idx_labels,L,c):
             raise NotImplementedError("{} has not been implemented in function {}".format(mode, inspect.currentframe().f_code.co_name))
         y_pred = SSL_clustering(c.AL_alpha, L, y, w,c.L_eta)
         cluster_acc = analyse_probability_matrix(y_pred, y, idx_labels, c)
+        if c.SL_at_each_step:
+            dl_train = set_labels(y_pred, dl_train)
+            if i == 0:
+                epochs = c.SL_epochs_init
+            else:
+                epochs = c.SL_epochs
+            net, tmp = train(net, optimizer, dl_train, loss_fnc, c.LOG, device=c.device,
+                                            dataloader_test=dl_test,
+                                            epochs=epochs, use_probabilities=True)
+            result['test_acc'].append(tmp)
         update_result(result, idx_labels, cluster_acc)
     return idx_labels,y_pred,result
 
