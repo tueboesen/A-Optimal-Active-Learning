@@ -18,13 +18,13 @@ To train the model(s) in the paper, run the following commands:
 ```train
 python train_circles.py 
 ```
-which should produce the following results:
+which will produce the following results:
 ![Alt text](figures/error_circles.png?raw=true "Results")
 
 #### MNIST
 ```train
 python train.py 
 ```
-which should produce the following results:
+which should produce results similar to the following results:
 ![Alt text](figures/acc_mnist.png?raw=true "Results")
 
