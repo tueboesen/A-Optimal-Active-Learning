@@ -23,7 +23,7 @@ which will produce the following results:
 
 #### MNIST
 ```train
-python train.py 
+python train_mnist.py 
 ```
 which should produce results similar to the following results:
 ![Alt text](figures/acc_mnist.png?raw=true "Results")
