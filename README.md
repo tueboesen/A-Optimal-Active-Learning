@@ -1,6 +1,7 @@
 # A-Optimal Active Learning
 This code is the official implementation of ...
 
+To use this code, clone this repository and install the requirements.
 ## Requirements
 
 To install requirements:
