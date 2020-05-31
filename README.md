@@ -16,23 +16,15 @@ To train the model(s) in the paper, run the following commands:
 
 #### Circles
 ```train
-python train.py 
+python train_circles.py 
 ```
+which should produce the following results:
+![Alt text](figures/error_circles.png?raw=true "Results")
 
 #### MNIST
 ```train
 python train.py 
 ```
-
-## Results
-
-Our model achieves the following performance on :
-
-### [Image Classification on ImageNet](https://paperswithcode.com/sota/image-classification-on-imagenet)
-
-| Model name         | Top 1 Accuracy  | Top 5 Accuracy |
-| ------------------ |---------------- | -------------- |
-| My awesome model   |     85%         |      95%       |
-
-> 📋Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it. 
+which should produce the following results:
+![Alt text](figures/acc_mnist.png?raw=true "Results")
 
