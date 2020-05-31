@@ -31,7 +31,15 @@ def preview_circles(dataloader,save=None):
     return
 
 def plot_results(results,groupid,save=None):
+    def plot_err(x, y, label=None):
+        y = 100 - np.asarray(y)
+        x = np.asarray(x)
+        x_mean = np.mean(x, axis=0)
+        y_mean = np.mean(y, axis=0)
+        plt.semilogy(x_mean, y_mean, '-o', label=label, markersize=3)
+
     fig_c = plt.figure(figsize=[10, 10])
+    fig_ce = plt.figure(figsize=[10, 10])
     plt.clf()
     for result in results:
         if not result['nidx']:
@@ -50,11 +58,21 @@ def plot_results(results,groupid,save=None):
         plt.ylabel('Accuracy (%)')
         plt.legend()
 
+        plt.figure(fig_ce.number)
+        plot_err(x, y, label=result['method'])
+
+        plt.xlabel('known labels (#)')
+        plt.ylabel('Error (%)')
+        plt.legend()
+        plt.xlim(0, 300)
 
     if save:
         fileloc = "{}/{}.png".format(save, 'Results_clustering')
         fig_c.savefig(fileloc)
         plt.close(fig_c.number)
+        fileloc = "{}/{}.png".format(save, 'Error_clustering')
+        fig_ce.savefig(fileloc)
+        plt.close(fig_ce.number)
     return
 
 
