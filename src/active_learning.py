@@ -26,7 +26,6 @@ def initial_labeling(mode,nlabels,dataloader):
 def run_active_learning(mode,y,idx_labels,L,c,dl_train=None,dl_test=None,net=None,optimizer=None,loss_fnc=None):
     n,nc = y.shape
     result = setup_result()
-
     w = np.zeros(n)
     w[idx_labels] = c.AL_w0
     L = L + c.L_tau * identity(L.shape[0])

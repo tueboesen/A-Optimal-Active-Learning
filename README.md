@@ -1,4 +1,37 @@
-[![CircleCI](https://circleci.com/gh/tueboesen/Active-Learning.svg?style=shield&circle-token=446d8adaf7476dd4a465f5de94c6287932f11084)](<LINK>)
+# A-Optimal Active Learning
+This code is the official implementation of ...
 
-This code tests various active learning approaches.
-To run the code, run_debug.py or any other run_ file.
+## Requirements
+
+To install requirements:
+
+```setup
+pip install -r requirements.txt
+```
+
+## Training
+
+To train the model(s) in the paper, run the following commands:
+
+#### Circles
+```train
+python train.py 
+```
+
+#### MNIST
+```train
+python train.py 
+```
+
+## Results
+
+Our model achieves the following performance on :
+
+### [Image Classification on ImageNet](https://paperswithcode.com/sota/image-classification-on-imagenet)
+
+| Model name         | Top 1 Accuracy  | Top 5 Accuracy |
+| ------------------ |---------------- | -------------- |
+| My awesome model   |     85%         |      95%       |
+
+> 📋Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it. 
+
