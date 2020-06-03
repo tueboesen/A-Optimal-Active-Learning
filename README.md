@@ -25,6 +25,6 @@ which will produce the following results:
 ```train
 python train_mnist.py 
 ```
-which should produce results similar to the following results:
+which will produce the following results:
 ![Alt text](figures/acc_mnist.png?raw=true "Results")
 
