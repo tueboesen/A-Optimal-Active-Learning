@@ -55,6 +55,31 @@ def plot_results(results,groupid,save=None):
         fileloc = "{}/{}.png".format(save, 'Results_clustering')
         fig_c.savefig(fileloc)
         plt.close(fig_c.number)
+
+    fig_c = plt.figure(figsize=[10, 10])
+    plt.clf()
+    for result in results:
+        if not result['nidx']:
+            continue
+        x = result['nidx']
+        x_mean = np.mean(x, axis=0)
+
+        plt.figure(fig_c.number)
+        y=result['test_acc']
+        y_mean = np.mean(y, axis=0)
+        y_std = np.std(y, axis=0)
+        h = plt.plot(x_mean, y_mean, '-o', label=result['method'],gid=groupid)
+        plt.fill_between(x_mean, y_mean - y_std, y_mean + y_std, color=h[0].get_color(), alpha=0.2, gid=groupid)
+        plt.title('Test Accuracy')
+        plt.xlabel('known labels (#)')
+        plt.ylabel('Accuracy (%)')
+        plt.legend()
+
+
+    if save:
+        fileloc = "{}/{}.png".format(save, 'Results_test_acc')
+        fig_c.savefig(fileloc)
+        plt.close(fig_c.number)
     return
 
 

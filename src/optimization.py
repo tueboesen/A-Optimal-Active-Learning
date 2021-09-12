@@ -1,6 +1,9 @@
 import time
+import torch.nn.functional as F
 
 import matplotlib
+
+from src.losses import select_loss_fnc
 
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
@@ -10,7 +13,7 @@ import torch
 import torchvision
 
 
-def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_test=None,epochs=100,use_probabilities=True):
+def test(net,LOG,dataloader_test,device='cpu'):
     '''
     Standard training routine.
     :param net: Network to train
@@ -26,6 +29,43 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_te
     '''
     net.to(device)
     t0 = time.time()
+    net.eval()
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images_v, labels_v,_,_ in dataloader_test:
+            images_v = images_v.to(device)
+            labels_v = labels_v.to(device)
+            outputs_v = net(images_v)
+            predicted = torch.max(outputs_v.data, 1)[1]
+            total += labels_v.size(0)
+            correct += (predicted == labels_v).sum()
+        accuracy = 100 * float(correct) / float(total)
+        t1 = time.time()
+        LOG.info('Accuracy(test): {:3.2f}%  Time: {:.2f} '.format(accuracy, t1-t0))
+    net.train()
+    return accuracy
+
+
+
+def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_test=None,epochs=100,use_probabilities=True):
+    '''
+    Standard training routine.
+    :param net: Network to train
+    :param optimizer: Optimizer to use
+    :param dataloader_train: Data to train on
+    :param loss_fnc: loss function to use
+    :param LOG: LOG file handler to print to
+    :param device: device to perform computation on
+    :param dataloader_test: Dataloader to test the accuracy on after each epoch.
+    :param epochs: Number of epochs to train
+    :param use_probabilities: If False the target will be one-hot, otherwise it will be some kind of probability array (might be zero centered)
+    :return:
+    '''
+    net.to(device)
+    net.train()
+    t0 = time.time()
+    loss_fnc = select_loss_fnc(loss_type, use_probabilities=use_probabilities)
     accuracy = 0
     for epoch in range(epochs):
         loss_epoch = 0
@@ -56,7 +96,7 @@ def train(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',dataloader_te
                     correct += (predicted == labels_v).sum()
                 accuracy = 100 * float(correct) / float(total)
                 t1 = time.time()
-                LOG.info('Epoch: {:4d}  Loss: {:6.2f}  Accuracy: {:3.2f}%  Time: {:.2f} '.format(epoch, loss_epoch, accuracy, t1-t0))
+                LOG.info('Epoch: {:4d}  Loss(train): {:6.2f}  Accuracy(test): {:3.2f}%  Time: {:.2f} '.format(epoch, loss_epoch, accuracy, t1-t0))
             net.train()
     return net, accuracy
 
@@ -72,14 +112,15 @@ def eval_net(net,dataset,device='cpu',batchsize=501):
     net.eval()
     with torch.no_grad():
         nsamples = len(dataset)
-        output_tmp = []
+        prob_tmp = []
         for i in range(0, nsamples, batchsize):
             batch = dataset.imgs[i:min(i + batchsize,nsamples)]
             outputi = net(batch.to(device))
-            output_tmp.append(outputi.cpu())
-        output = torch.cat(output_tmp, dim=0)
+            probi = F.softmax(outputi, dim=1)
+            prob_tmp.append(probi.cpu())
+        prob = torch.cat(prob_tmp, dim=0)
     net.train()
-    return output
+    return prob
 
 def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100,save=None):
     '''

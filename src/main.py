@@ -8,7 +8,7 @@ import torch.optim as optim
 from src.feature_transforms import select_feature_transform
 from src.losses import select_loss_fnc
 from src.networks import select_network
-from src.optimization import train
+from src.optimization import train, test
 from src.results import init_results, save_results
 
 matplotlib.use('Agg')
@@ -49,7 +49,8 @@ def main(c):
         features = select_feature_transform(dl_train,c)
 
     # Calculate Laplacian
-    L,A = compute_laplacian(features, metric=c.L_metric, knn=c.L_knn, union=True)
+    # L,A = compute_laplacian(features, metric=c.L_metric, knn=c.L_knn, union=True)
+    L = None
 
     # Save preview
     select_preview(c.dataset,dl_train,save="{}/{}.png".format(c.result_dir, 'True_classes'))
@@ -65,14 +66,12 @@ def main(c):
             if method_val:
                 c.LOG.info('Date:{}, Starting:{}, iteration:{}...'.format(datetime.now(),method_name,i))
                 net = select_network(c.SL_network, dl_train.dataset.nc,c.LOG)
-                optimizer = optim.SGD(list(net.parameters()), lr=5e-3,weight_decay=1e-5, momentum=0.9)
+                # optimizer = optim.SGD(list(net.parameters()), lr=5e-3,weight_decay=1e-5, momentum=0.9)
+                optimizer = optim.Adam(list(net.parameters()), lr=5e-3)
 
                 dl_train,idx_labels = initial_labeling(c.initial_labeling_mode,c.nlabels,dl_train)
-                idx_labels, y_pred, result = run_active_learning(method_name,dl_train.dataset.plabels_true.numpy(),idx_labels,L,c,net=net,optimizer=optimizer,dl_train=dl_train,dl_test=dl_test,loss_fnc=loss_fnc)
+                idx_labels, result = run_active_learning(method_name,dl_train.dataset.plabels_true.numpy(),idx_labels,L,c,net=net,optimizer=optimizer,dl_train=dl_train,dl_test=dl_test,loss_fnc=loss_fnc)
 
-                dl_train = set_labels(y_pred,dl_train)
-                net, result['test_acc'] = train(net, optimizer, dl_train, loss_fnc, c.LOG, device=c.device,
-                                             dataloader_test=dl_test,
-                                             epochs=c.SL_epochs, use_probabilities=True)
+                result['test_acc_end'] = test(net, c.LOG, dataloader_test=dl_test, device=c.device)
                 save_results(results,result, c.result_dir,j)
                 plot_results(results, j, save=c.result_dir)

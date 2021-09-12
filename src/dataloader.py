@@ -56,10 +56,11 @@ class Dataset_preload_with_label_prob(Dataset):
             np.random.shuffle(flat_idx_used)
             idx_selected = flat_idx_used[:nsamples]
             self.imgs = self.imgs[idx_selected]
-            self.labels = list(np.asarray(self.labels)[idx_selected])
+            self.labels = np.asarray(self.labels)[idx_selected]
         n = len(self.labels)
         nc = len(np.unique(self.labels))
         self.nc = nc
+        self.labels = np.array(self.labels)
         self.labels_true = copy.deepcopy(self.labels)
         if zero_center_label_probabilities:
             plabels = torch.zeros(n, nc)
@@ -104,7 +105,7 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,downl
     MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False,binary=binary)
     MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False,binary=binary)
 
-    MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,shuffle=True, num_workers=0)
+    MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,shuffle=True, num_workers=0, drop_last=False)
     MNIST_test = torch.utils.data.DataLoader(MNISTtestset_pre, batch_size=batch_size,shuffle=False, num_workers=0)
     return MNIST_train, MNIST_test
 
@@ -328,3 +329,15 @@ def AddNoise(X,ns):
     position = position.astype(np.single)
     target = - np.ones((len(position)), dtype=np.int64)
     return position, target
+
+
+def subset_of_dataset(dataset,idx,idx_pseudo,label_pseudo,batch_size):
+    idx2 = np.array(idx)
+    if len(idx_pseudo) > 0:
+        dataset.labels[idx_pseudo] = label_pseudo
+    dataset.labels[idx2] = dataset.labels_true[idx2]
+
+    idx_tot = idx + idx_pseudo
+    subset = torch.utils.data.Subset(dataset, idx_tot)
+    dataloader = torch.utils.data.DataLoader(subset, batch_size=batch_size,shuffle=True, num_workers=0, drop_last=True)
+    return dataloader
