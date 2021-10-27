@@ -78,7 +78,11 @@ def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_t
                 target = labels.to(device)
             optimizer.zero_grad()
             outputs = net(images)
-            loss = loss_fnc(outputs, target).mean()
+            if use_probabilities:
+                prob = F.softmax(outputs,dim=1)
+            else:
+                prob = outputs
+            loss = loss_fnc(prob, target).mean()
             loss.backward()
             optimizer.step()
             loss_epoch += loss.item()

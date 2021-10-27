@@ -40,7 +40,7 @@ def main(c):
         c.LOG.info("{:30s} : {}".format(key, value))
 
     # Load Dataset
-    dl_train,dl_test = select_dataset(c.dataset,c.batch_size,c.nsamples,c.device,c.binary)
+    dl_train,dl_test = select_dataset(c.dataset,c.batch_size,c.nsamples_train,c.nsamples_test,c.device,c.binary)
 
     # Transform features?
     if c.feature_transform == '':
@@ -49,8 +49,8 @@ def main(c):
         features = select_feature_transform(dl_train,c)
 
     # Calculate Laplacian
-    # L,A = compute_laplacian(features, metric=c.L_metric, knn=c.L_knn, union=True)
-    L = None
+    L,A = compute_laplacian(features, metric=c.L_metric, knn=c.L_knn, union=True)
+    # L = None
 
     # Save preview
     select_preview(c.dataset,dl_train,save="{}/{}.png".format(c.result_dir, 'True_classes'))

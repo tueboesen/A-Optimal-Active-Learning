@@ -3,18 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def run_active_learning_ms(dl,idx_labels,y,c,net,nlabels,delta):
+def run_active_learning_ms(dl,idx_labels,y,c,net,nlabels,delta,device):
     # First we predict labels for all of dl_org and find the ones that are most uncertain
     device = c.device
     net.eval()
-    ms_ref = torch.ones(nlabels)
-    idx_ms = -torch.ones(nlabels,dtype=torch.int64)
+    ms_ref = torch.ones(nlabels,device=device)
+    idx_ms = -torch.ones(nlabels,dtype=torch.int64,device=device)
     idx_pseudo = []
     label_pseudo = []
 
     with torch.no_grad():
         for images, labels, _, idx in dl:
             images = images.to(device)
+            idx = idx.to(device)
             # labels = labels.to(device)
             outputs = net(images)
             prob = F.softmax(outputs, dim=1)

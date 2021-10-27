@@ -11,13 +11,13 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
 
-def select_dataset(dataset,batch_size,nsamples,device,binary):
+def select_dataset(dataset,batch_size,nsamples_train,nsamples_test,device,binary):
     if dataset == 'mnist':
-        dl_train, dl_test = Load_MNIST(batch_size=batch_size, nsamples=nsamples,binary=binary)
+        dl_train, dl_test = Load_MNIST(batch_size=batch_size, nsamples_train=nsamples_train,nsamples_test=nsamples_test,binary=binary)
     elif dataset == 'circles':
-        dl_train, dl_test = Load_circles(batch_size=batch_size, nsamples=nsamples)
+        dl_train, dl_test = Load_circles(batch_size=batch_size, nsamples_train=nsamples_train,nsamples_test=nsamples_test)
     elif dataset == 'cifar10':
-        dl_train, dl_test = Load_CIFAR10(batch_size=batch_size, nsamples=nsamples)
+        dl_train, dl_test = Load_CIFAR10(batch_size=batch_size, nsamples_train=nsamples_train,nsamples_test=nsamples_test)
     else:
         raise NotImplementedError("Selected dataset: {}, has not been implemented yet.".format(dataset))
     return dl_train,dl_test
@@ -82,7 +82,7 @@ class Dataset_preload_with_label_prob(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,download=True,use_1_vs_all=-1,binary=[]):
+def Load_MNIST(batch_size=1000,nsamples_train=-1,nsamples_test=-1, device ='cpu',order_data=False,download=True,use_1_vs_all=-1,binary=[]):
     '''
     Loads MNIST dataset into the pytorch dataloader structure
 
@@ -102,8 +102,8 @@ def Load_MNIST(batch_size=1000,nsamples=-1, device ='cpu',order_data=False,downl
     MNISTtrainset = torchvision.datasets.MNIST(root='../data', train=True, transform=trans, download=download)
     MNISTtestset = torchvision.datasets.MNIST(root='../data', train=False, transform=trans)
 
-    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False,binary=binary)
-    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples,name='mnist',zero_center_label_probabilities=False,binary=binary)
+    MNISTtrainset_pre = Dataset_preload_with_label_prob(MNISTtrainset,nsamples=nsamples_train,name='mnist',zero_center_label_probabilities=False,binary=binary)
+    MNISTtestset_pre = Dataset_preload_with_label_prob(MNISTtestset,nsamples=nsamples_test,name='mnist',zero_center_label_probabilities=False,binary=binary)
 
     MNIST_train = torch.utils.data.DataLoader(MNISTtrainset_pre, batch_size=batch_size,shuffle=True, num_workers=0, drop_last=False)
     MNIST_test = torch.utils.data.DataLoader(MNISTtestset_pre, batch_size=batch_size,shuffle=False, num_workers=0)

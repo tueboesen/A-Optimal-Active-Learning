@@ -25,7 +25,7 @@ def select_feature_transform(dataloader,c):
                                        epochs=c.FT_epochs, save="{}/{}.png".format(c.result_dir, 'autoencoder'))
             state = {'features': features,
                      'epochs_AE': c.FT_epochs,
-                     'nsamples': c.nsamples,
+                     'nsamples': c.nsamples_train,
                      'decode_dim': c.FT_decode_dim,
                      'lr_AE': lr,
                      'npar_AE': determine_network_param(netAE),
