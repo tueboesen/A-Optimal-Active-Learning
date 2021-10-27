@@ -1,7 +1,7 @@
-import matplotlib.pyplot as plt
 import ast
-import numpy as np
 
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def init_results(methods):

@@ -2,12 +2,12 @@ import torch.nn as nn
 
 
 def select_network(network,decode_dim=10):
-    '''
+    """
     Selects the autoencoder to use.
     :param network:
     :param decode_dim:
     :return:
-    '''
+    """
     if network == 'linear':
         net = autoencoder_linear(decode_dim)
     elif network == 'conv':

@@ -3,12 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 def select_loss_fnc(loss_type,use_probabilities=False):
-    '''
+    """
     Selects the type of loss function to use. Choices are currently Cross-entropy or Mean-Square-Estimate.
     :param loss_type: 'CE' or 'MSE'
     :param use_probabilities:
     :return:
-    '''
+    """
     if loss_type == 'CE':
         if use_probabilities:
             loss_fnc = cross_entropy_probabilities(reduction='none')
@@ -23,9 +23,9 @@ def select_loss_fnc(loss_type,use_probabilities=False):
 
 
 class cross_entropy_probabilities(torch.nn.Module):
-    '''
+    """
     Cross entropy function that can handle probability targets
-    '''
+    """
 
     def __init__(self,reduction='none'):
         self.reduction = reduction
@@ -46,10 +46,10 @@ class cross_entropy_probabilities(torch.nn.Module):
             return loss.sum()
 
 class MSE_custom(torch.nn.Module):
-    '''
+    """
     This class works just like the normal MSE loss function, with the extra option of using reduction='sum_to_samples'
     which sums over all other dimension and reduce the dimension down to the number of samples. Which is useful if you want to put individual weight on each point.
-    '''
+    """
     def __init__(self,reduction='sum_to_samples'):
         self.reduction = reduction
         super(MSE_custom,self).__init__()

@@ -8,7 +8,7 @@ import torch.optim as optim
 from src.feature_transforms import select_feature_transform
 from src.losses import select_loss_fnc
 from src.networks import select_network
-from src.optimization import train, test
+from src.optimization import test
 from src.results import init_results, save_results
 
 matplotlib.use('Agg')
@@ -16,7 +16,7 @@ matplotlib.use('Agg')
 from src import log
 from src.Laplacian import compute_laplacian
 from src.active_learning import run_active_learning, initial_labeling
-from src.dataloader import set_labels, select_dataset
+from src.dataloader import select_dataset
 from src.utils import fix_seed
 from src.visualization import plot_results, select_preview
 

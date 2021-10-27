@@ -23,11 +23,11 @@ def select_dataset(dataset,batch_size,nsamples_train,nsamples_test,device,binary
     return dl_train,dl_test
 
 class Dataset_preload_with_label_prob(Dataset):
-    '''
+    """
     This one preloads all the images! And always calculates the label probabilities as well, it is then up to the user whether to use one or the other.
     This is of course slower than just loading one of the two, but should not be that much slower.
     zero_center_label_probabilities: makes the label probabilities obey the constraint ye=0, where y is the label probabilities.
-    '''
+    """
     def __init__(self, dataset, nsamples=-1,zero_center_label_probabilities=True,name='',binary=[]):
         imgs = []
         self.labels = []
@@ -83,7 +83,7 @@ class Dataset_preload_with_label_prob(Dataset):
         return len(self.imgs)
 
 def Load_MNIST(batch_size=1000,nsamples_train=-1,nsamples_test=-1, device ='cpu',order_data=False,download=True,use_1_vs_all=-1,binary=[]):
-    '''
+    """
     Loads MNIST dataset into the pytorch dataloader structure
 
 
@@ -94,7 +94,7 @@ def Load_MNIST(batch_size=1000,nsamples_train=-1,nsamples_test=-1, device ='cpu'
     :param use_label_probabilities: should labels be one hot, or a tensor of label probabilities
     :param download: First time it is run it should be run with download=true, afterwards it can be set to false.
     :return: MNIST_train, MNIST_test
-    '''
+    """
     # transforms to apply to the data
     trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 
@@ -110,6 +110,11 @@ def Load_MNIST(batch_size=1000,nsamples_train=-1,nsamples_test=-1, device ='cpu'
     return MNIST_train, MNIST_test
 
 def Load_CIFAR10(batch_size=1000,nsamples=-1, download=True):
+    """
+
+    """
+
+
     # transforms to apply to the data
     trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616))])
 
@@ -145,7 +150,7 @@ def Load_CIFAR10(batch_size=1000,nsamples=-1, download=True):
 
 
 def set_labels(idx,dataloader,class_balance=False,remove_all_unknown_labels=True):
-    '''
+    """
     Sets the data labels on a dataloader
     If idx is a list, it sets labels[idx] = true_labels[idx] and plabels[idx] = plabels_true[idx]
     If idx is an integer, it randomly creates a list of indices with that many elements and does the list option.
@@ -156,7 +161,7 @@ def set_labels(idx,dataloader,class_balance=False,remove_all_unknown_labels=True
     :param class_balance: Only relevant if idx is an integer, it then makes sure the labels are set with equal number of labels from each class or as close as possible.
     :param remove_all_unknown_labels: If True, it will set all plabels to 0 and all labels=-1 before updating the known idxs.
     :return: Updated dataloader
-    '''
+    """
     if type(idx) is int:
         if class_balance:
             nidx = idx

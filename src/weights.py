@@ -1,7 +1,7 @@
 import numpy as np
 
 def find_weights_from_labels(y,idxs,include_class_balance=True):
-    '''
+    """
     This function finds the training weights
     The training weights can include a lot of different components
     Entropy (how certain we are of the label being correct.)
@@ -13,7 +13,7 @@ def find_weights_from_labels(y,idxs,include_class_balance=True):
     :param idxs: known labels
     :param include_class_balance: Makes sure each class has the same total amount of weight distributed among their datapoints
     :return: w: weights for the training
-    '''
+    """
     #First calculate the entropy weight.
     n,nc = y.shape
     labels = np.argmax(y,axis=1)

@@ -1,4 +1,6 @@
-[![CircleCI](https://circleci.com/gh/tueboesen/Active-Learning.svg?style=shield&circle-token=446d8adaf7476dd4a465f5de94c6287932f11084)](<LINK>)
+This is a code for iterative active learning.
+This code generates the results shown in https://arxiv.org/abs/2110.09585.
+To use the code, run run.py.
 
-This code tests various active learning approaches.
-To run the code, run_debug.py or any other run_ file.
+Requirements:
+The code is written in python/pytorch, and details of the requirements can be found in requirements.txt.

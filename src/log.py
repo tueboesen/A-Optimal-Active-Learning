@@ -3,12 +3,12 @@ from datetime import datetime
 
 
 def setup_custom_logger(name,logfile_loc,mode):
-    '''
+    """
     Starts a logger that prints to a file and to the screen.
     :param name:
     :param logfile_loc:
     :return:
-    '''
+    """
     # formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
     sh = logging.StreamHandler()
     # sh.setFormatter(formatter)
@@ -29,11 +29,11 @@ def setup_custom_logger(name,logfile_loc,mode):
 
 
 def close_logger(log):
-    '''
+    """
     Removes all handlers from logger and effectively closes the logger down.
     :param log:
     :return:
-    '''
+    """
     log.info('Closing logfile at {}.'.format(datetime.now()))
     handlers = log.handlers[:]
     for handler in handlers:

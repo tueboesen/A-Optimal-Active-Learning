@@ -2,14 +2,14 @@ import numpy as np
 
 
 def analyse_probability_matrix(y_pred,y_true,idx_labels,c):
-    '''
+    """
     Analyses a probability matrix U
     :param U: probability matrx (nsamples,nclasses)
     :param dataset:
     :param LOG:
     :param L:
     :return:
-    '''
+    """
     n,nc = y_true.shape
     c_pred = np.argmax(y_pred,axis=1)
     c_true = np.argmax(y_true,axis=1)

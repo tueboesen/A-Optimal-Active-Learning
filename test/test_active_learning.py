@@ -6,10 +6,10 @@ from src.active_learning import getOEDA
 
 
 def teest_OEDA():
-    '''
+    """
     https://www.dummies.com/education/math/calculus/calculating-error-bounds-for-taylor-polynomials/
     :return:
-    '''
+    """
     # TODO Update this to the actual residual of the taylor series
 
     def numgrid(n):

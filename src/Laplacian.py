@@ -7,7 +7,7 @@ from scipy.sparse import coo_matrix, csr_matrix
 
 
 def ANN_hnsw(x, k=10, euclidian_metric=False, union=True, eff=None,cutoff=False):
-    '''
+    """
     Calculates the approximate nearest neighbours using the Hierarchical Navigable Small World Graph for fast ANN search. see: https://github.com/nmslib/hnswlib
     :param x: 2D numpy array with the first dimension being different data points, and the second the features of each point.
     :param k: Number of neighbours to compute
@@ -16,7 +16,7 @@ def ANN_hnsw(x, k=10, euclidian_metric=False, union=True, eff=None,cutoff=False)
     :param eff: determines how accurate the ANNs are built, see https://github.com/nmslib/hnswlib for details.
     :param cutoff: Includes a cutoff distance, such that any connection which is smaller than the cutoff is removed. If True, the cutoff is automatically calculated, if False, no cutoff is used, if a number, it is used as the cutoff threshold. Note that the cutoff has a safety built in that makes sure each data point has at least one neighbour to minimize the risk of getting a disjointed graph.
     :return: Symmetric adjacency matrix, mean distance of all connections (including the self connections)
-    '''
+    """
     nsamples = len(x)
     dim = len(x[0])
     # Generating sample data
@@ -82,7 +82,7 @@ def ANN_hnsw(x, k=10, euclidian_metric=False, union=True, eff=None,cutoff=False)
 
 
 def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
-    '''
+    """
     Computes a knn Graph-Laplacian based on the features given.
     Note that there is room for improvement here, the graph laplacian could be built directly on the distances found by the ANN search (which are approximate) this would inherently ensure that the ANNs actually match the metric used in the graph laplacian, and make it faster.
     :param features: Features the graph laplacian will be built on. These can either be given as a torch tensor or numpy array. The first dimension should contain the number of samples, all other dimensions will be flattened.
@@ -91,7 +91,7 @@ def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
     :param union: The adjacency matrix will be made symmetrical, this determines whether to include the connections that only go one way or remove them. If union is True, then they are included.
     :param cutoff: Includes a cutoff distance, such that any connection which is smaller than the cutoff is removed. If True, the cutoff is automatically calculated, if False, no cutoff is used, if a number, it is used as the cutoff threshold. Note that the cutoff has a safety built in that makes sure each data point has at least one neighbour to minimize the risk of getting a disjointed graph.
     :return: Graph Laplacian, Adjacency matrix
-    '''
+    """
     t1 = time.time()
     if isinstance(features, torch.Tensor):
         features = features.cpu().numpy()
@@ -112,14 +112,14 @@ def compute_laplacian(features,metric='l2',knn=9,union=True,cutoff=False):
 
 
 def Laplacian_Euclidian(X, A, sigma, dt=None):
-    '''
+    """
     Computes the Graph Laplacian as: L_ij = A_ij * exp(- ||X_i - X_j||_2^2 / sigma)
     :param X: 2D numpy array with the first dimension being different data points, and the second the features of each point.
     :param A: Adjacency matrix built with the same metric.
     :param sigma: characteristic distance
     :param dt: datatype the returned Laplacian should have, if not used, it will default to whatever the datatype of X is.
     :return: Graph Laplacian, Normalized symmetric Graph Laplacian
-    '''
+    """
     if dt is None:
         dt = X.dtype
     A = A.tocoo()
@@ -140,13 +140,13 @@ def Laplacian_Euclidian(X, A, sigma, dt=None):
     return L,L_sym
 
 def Laplacian_angular(X, A,dt=None):
-    '''
+    """
     Computes the Graph Laplacian with cosine angular metric: L_ij = A_ij * (1 - (X_i X_j') /(||X_i||*||X_j||)
     :param X: 2D numpy array with the first dimension being different data points, and the second the features of each point.
     :param A: Adjacency matrix built with the same metric.
     :param dt: datatype the returned Laplacian should have, if not used, it will default to whatever the datatype of X is.
     :return: Graph Laplacian, Normalized symmetric Graph Laplacian
-    '''
+    """
     if isinstance(X, torch.Tensor):
         X = X.numpy()
     if dt is None:

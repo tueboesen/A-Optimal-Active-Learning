@@ -1,7 +1,7 @@
 import time
-import torch.nn.functional as F
 
 import matplotlib
+import torch.nn.functional as F
 
 from src.losses import select_loss_fnc
 
@@ -14,7 +14,7 @@ import torchvision
 
 
 def test(net,LOG,dataloader_test,device='cpu'):
-    '''
+    """
     Standard training routine.
     :param net: Network to train
     :param optimizer: Optimizer to use
@@ -26,7 +26,7 @@ def test(net,LOG,dataloader_test,device='cpu'):
     :param epochs: Number of epochs to train
     :param use_probabilities: If False the target will be one-hot, otherwise it will be some kind of probability array (might be zero centered)
     :return:
-    '''
+    """
     net.to(device)
     t0 = time.time()
     net.eval()
@@ -49,7 +49,7 @@ def test(net,LOG,dataloader_test,device='cpu'):
 
 
 def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_test=None,epochs=100,use_probabilities=True):
-    '''
+    """
     Standard training routine.
     :param net: Network to train
     :param optimizer: Optimizer to use
@@ -61,7 +61,7 @@ def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_t
     :param epochs: Number of epochs to train
     :param use_probabilities: If False the target will be one-hot, otherwise it will be some kind of probability array (might be zero centered)
     :return:
-    '''
+    """
     net.to(device)
     net.train()
     t0 = time.time()
@@ -105,13 +105,13 @@ def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_t
     return net, accuracy
 
 def eval_net(net,dataset,device='cpu',batchsize=501):
-    '''
+    """
     Splits the dataset up into manageable batches and run each batch through the network and returns the output.
     :param net: Network
     :param dataloader: standard pytorch dataloader to iterate through. Note we do not use the builtin data
     :param device:
     :return:
-    '''
+    """
     net.to(device)
     net.eval()
     with torch.no_grad():
@@ -127,7 +127,7 @@ def eval_net(net,dataset,device='cpu',batchsize=501):
     return prob
 
 def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100,save=None):
-    '''
+    """
     Training routine for an autoencoder
     :param net: Network to train
     :param optimizer: Optimizer to use
@@ -140,7 +140,7 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
     :return:
         net -  trained network
         encoded - the full dataset transformed by the fully trained network to its encoded space
-    '''
+    """
     net.to(device)
     t0 = time.time()
     for epoch in range(epochs):
@@ -183,13 +183,13 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
     return net,encoded
 
 def run_AE(net,dataloader,device='cpu'):
-    '''
+    """
     This function is used to an already trained autoencoder on a dataset in smaller batches. This should be removed and merged with eval_net instead
     :param net:
     :param dataloader:
     :param device:
     :return:
-    '''
+    """
     #TODO merge with EVAL_net()
     net.to(device)
     net.eval()

@@ -4,7 +4,7 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import cg, LinearOperator
 from scipy.special import softmax
 def SSL_clustering(alpha, L, Yobs, w, eta, TOL=1e-9,MAXITER=10000):
-    '''
+    """
     Minimizes the objective function:
     U = arg min_Y 1/2 ||Y - Yobs||_W^2 + alpha/2 * Y'*L*Y
     s.t. Ye = 0
@@ -15,7 +15,7 @@ def SSL_clustering(alpha, L, Yobs, w, eta, TOL=1e-9,MAXITER=10000):
     :param Yobs: labelled data
     :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
     :return:
-    '''
+    """
     if isinstance(Yobs, torch.Tensor):
         Yobs = Yobs.numpy()
     n,nc = Yobs.shape
@@ -38,12 +38,12 @@ def SSL_clustering(alpha, L, Yobs, w, eta, TOL=1e-9,MAXITER=10000):
     return U
 
 def convert_pseudo_to_prob(v,use_softmax=False):
-    '''
+    """
     Converts a pseudo probability array to a probability array
     :param v: is a pseudo probability array, that is subject to ve = 0
     :param use_softmax:
     :return:
-    '''
+    """
     if use_softmax:
         cpv = softmax(v,axis=1)
     else:

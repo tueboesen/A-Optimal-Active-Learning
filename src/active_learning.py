@@ -1,22 +1,26 @@
 import inspect
-import torch.nn.functional as F
 
 import numpy as np
-from scipy.sparse import identity
 from scipy.special import softmax
 
 from src.Clustering import SSL_clustering
-from src.Laplacian import compute_laplacian
 from src.active_learning_adaptive import run_active_learning_adaptive
 from src.active_learning_ms import run_active_learning_ms
 from src.dataloader import set_labels, subset_of_dataset
-from src.optimization import train, eval_net
+from src.optimization import train
 from src.passive_learning import run_passive_learning
 from src.report import analyse_probability_matrix
 from src.results import setup_result, update_result
 
 
 def initial_labeling(mode,nlabels,dataloader):
+    """
+    Determines how the initial labelling of datapoints is done.
+    Current options are:
+    balanced: which selects equal amounts of labels from each class
+    random: which randomly draws the labels among all samples
+    bayesian: IS NOT CURRENTLY IMPLEMENTED, but the idea would be to select initial labels based on the baysian approach of the graph Laplacian, as mentioned in the paper.
+    """
     if mode == 'balanced':
         dataloader,idx = set_labels(nlabels, dataloader, class_balance=True)
     elif mode == 'random':
@@ -28,11 +32,13 @@ def initial_labeling(mode,nlabels,dataloader):
     return dataloader,idx
 
 def run_active_learning(mode,y,idx_labels,L,c,dl_train=None,dl_test=None,net=None,optimizer=None,loss_fnc=None):
+    """
+    This is the main driver for iterative active learning
+    :mode: determines the type of active learning to be used
+    """
     n,nc = y.shape
     result = setup_result()
     dl_org = dl_train
-    delta0 = 0.005
-    delta1 = 0.001
     w = np.zeros(n)
     w[idx_labels] = c.AL_w0
     idx_pseudo = []
@@ -52,6 +58,8 @@ def run_active_learning(mode,y,idx_labels,L,c,dl_train=None,dl_test=None,net=Non
                 idx_labels = run_passive_learning(idx_labels, y, c.AL_nlabels_pr_class, class_balance=True)
                 w[idx_labels] = c.AL_w0
             elif mode == 'active_learning_ms':
+                delta0 = 0.005
+                delta1 = 0.001
                 delta = (delta1-delta0)/c.AL_iterations*i + delta0
                 idx_labels,idx_pseudo,label_pseudo = run_active_learning_ms(dl_org,idx_labels,y,c,net,c.AL_nlabels_pr_class*nc,delta,device=c.device)
             else:

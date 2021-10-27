@@ -7,17 +7,17 @@ from src.optimization import run_AE
 
 
 def save_state(state, file):
-    '''
+    """
     Saves the state of a network and some additional information needed for load_autoencoder
     :param state:
     :param file:
     :return:
-    '''
+    """
     torch.save(state, file)
 
 
 def load_autoencoder(fileloc,LOG,nsamples,decode_dim,network_type,dataloader,device):
-    '''
+    """
     Loads an autoencoder and its corresponding encoded space on the dataset it was trained on
     :param fileloc:
     :param nsamples:
@@ -26,7 +26,7 @@ def load_autoencoder(fileloc,LOG,nsamples,decode_dim,network_type,dataloader,dev
     :param dataloader:
     :param device:
     :return:
-    '''
+    """
     assert os.path.isfile(fileloc), "Error! no autoencoder found at '{}'".format(fileloc)
     data = torch.load(fileloc)
     if data['decode_dim'] != decode_dim:
