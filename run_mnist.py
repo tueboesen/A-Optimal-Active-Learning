@@ -46,6 +46,7 @@ parser.add_argument('--SL-epochs', default=20, type=int, metavar='N',help='Numbe
 parser.add_argument('--SL-network', default='resnet', type=str, metavar='N',help='select the neural network to train (resnet)')
 parser.add_argument('--SL-loss-type', default='CE', type=str, metavar='N',help='Loss type for network, (MSE or CE)')
 
+
 AL_methods = {
     'active_learning_adaptive': False,  # Adaptive active learning
     'active_learning_ms': True,
