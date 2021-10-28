@@ -15,7 +15,7 @@ def select_dataset(dataset,batch_size,nsamples_train,nsamples_test,device,binary
     if dataset == 'mnist':
         dl_train, dl_test = Load_MNIST(batch_size=batch_size, nsamples_train=nsamples_train,nsamples_test=nsamples_test,binary=binary)
     elif dataset == 'circles':
-        dl_train, dl_test = Load_circles(batch_size=batch_size, nsamples_train=nsamples_train,nsamples_test=nsamples_test)
+        dl_train, dl_test = Load_circles(batch_size=batch_size, nsamples=nsamples_train)
     elif dataset == 'cifar10':
         dl_train, dl_test = Load_CIFAR10(batch_size=batch_size, nsamples_train=nsamples_train,nsamples_test=nsamples_test)
     else:
