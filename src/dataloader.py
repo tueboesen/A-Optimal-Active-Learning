@@ -229,8 +229,9 @@ def Load_circles(batch_size=100,nsamples=2500, device ='cpu'):
     radial_centers = [0 , 1, 3]
     decay_length = [0.1, 0.2 , 0.5]
     testset = CreateCircleDataset(radial_centers,nsamples_test,decay_length,return_tensor=True)
-    test_data = Dataset_preload_with_label_prob(testset, nsamples=nsamples, name='circles')
-    dl_test = torch.utils.data.DataLoader(test_data, batch_size=batch_size,shuffle=True, num_workers=0)
+    # test_data = Dataset_preload_with_label_prob(testset, nsamples=nsamples, name='circles')
+    # dl_test = torch.utils.data.DataLoader(test_data, batch_size=batch_size,shuffle=True, num_workers=0)
+    dl_test = None
 
     return dl_train,dl_test
 

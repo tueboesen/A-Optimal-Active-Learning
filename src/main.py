@@ -73,7 +73,7 @@ def main(c):
 
                 dl_train,idx_labels = initial_labeling(c.initial_labeling_mode,c.nlabels,dl_train)
                 idx_labels, result = run_active_learning(method_name,dl_train.dataset.plabels_true.numpy(),idx_labels,L,c,net=net,optimizer=optimizer,dl_train=dl_train,dl_test=dl_test,loss_fnc=loss_fnc)
-
-                result['test_acc_end'] = test(net, c.LOG, dataloader_test=dl_test, device=c.device)
+                if dl_test is not None:
+                    result['test_acc_end'] = test(net, c.LOG, dataloader_test=dl_test, device=c.device)
                 save_results(results,result, c.result_dir,j)
                 plot_results(results, j, save=c.result_dir)

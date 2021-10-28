@@ -59,7 +59,7 @@ def plot_results(results,groupid,save=None):
     fig_c = plt.figure(figsize=[10, 10])
     plt.clf()
     for result in results:
-        if not result['nidx']:
+        if not result['nidx'] or not result['test_acc'][0]:
             continue
         x = result['nidx']
         x_mean = np.mean(x, axis=0)

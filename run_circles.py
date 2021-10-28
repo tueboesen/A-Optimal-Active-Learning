@@ -30,14 +30,14 @@ parser.add_argument('--L-knn', default=10, type=int, metavar='N',help='Number of
 parser.add_argument('--L-tau', default=1e-2, type=float, metavar='N',help='Hyperparameter in the computation of the regularization =(L + tau*I)^eta')
 parser.add_argument('--L-eta', default=2, type=int, metavar='N',help='Hyperparameter in the computation of the regularization =(L + tau*I)^eta')
 #Active Learning
-parser.add_argument('--AL-iterations', default=5, type=int, metavar='N',help='Number of active learning iterations to run')
-parser.add_argument('--AL-nlabels-pr-class', default=5, type=int, metavar='N',help='Number of data points to label for each class iteration')
+parser.add_argument('--AL-iterations', default=33, type=int, metavar='N',help='Number of active learning iterations to run')
+parser.add_argument('--AL-nlabels-pr-class', default=3, type=int, metavar='N',help='Number of data points to label for each class iteration')
 parser.add_argument('--AL-alpha', default=1, type=float, metavar='N',help='Hyperparameter')
 parser.add_argument('--AL-beta', default=0, type=float, metavar='N',help='Hyperparameter')
 parser.add_argument('--AL-sigma', default=1e-2, type=float, metavar='N',help='Hyperparameter')
 parser.add_argument('--AL-w0', default=1e6, type=float, metavar='N',help='Hyperparameter, sets the weight of each labeled datapoint to this value')
 #Learning
-parser.add_argument('--SL-at-each-step', default=True, type=bool, metavar='N',help='Determines whether to train a network after each active learning iteration')
+parser.add_argument('--SL-at-each-step', default=False, type=bool, metavar='N',help='Determines whether to train a network after each active learning iteration')
 parser.add_argument('--SL-epochs-init', default=10, type=int, metavar='N',help='Number of epochs to train the network the first time')
 parser.add_argument('--SL-epochs', default=5, type=int, metavar='N',help='Number of epochs to train the network')
 parser.add_argument('--SL-network', default='resnet', type=str, metavar='N',help='select the neural network to train (resnet)')
@@ -45,11 +45,11 @@ parser.add_argument('--SL-loss-type', default='MSE', type=str, metavar='N',help=
 
 
 AL_methods = {
-    'active_learning_adaptive': False,  # Adaptive active learning
-    'active_learning_ms': True,         # Active mean sampling
+    'active_learning_adaptive': True,  # Adaptive active learning
+    'active_learning_ms': False,         # Active mean sampling
     'active_learning_bayesian': False,  # Bayesian active learning
-    'passive_learning': False,  # Passive learning with randomly selected points
-    'passive_learning_balanced': False,  # Passive learning with class balanced selection of points
+    'passive_learning': True,  # Passive learning with randomly selected points
+    'passive_learning_balanced': True,  # Passive learning with class balanced selection of points
               }
 
 

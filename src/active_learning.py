@@ -84,8 +84,8 @@ def run_active_learning(mode,y,idx_labels,L,c,dl_train=None,dl_test=None,net=Non
             net, tmp = train(net, optimizer, dl_train, c.SL_loss_type, c.LOG, device=c.device,
                                             dataloader_test=dl_test,
                                             epochs=epochs, use_probabilities=use_probabilities)
+            c.LOG.info('AL: {:4d}  Accuracy: {:3.2f}%   idx_label: {:4d}  idx_pseudo: {:4d}'.format(i, tmp, len(idx_labels),len(idx_pseudo)))
             result['test_acc'].append(tmp)
         update_result(result, idx_labels, cluster_acc)
-        c.LOG.info('AL: {:4d}  Accuracy: {:3.2f}%   idx_label: {:4d}  idx_pseudo: {:4d}'.format(i, tmp, len(idx_labels), len(idx_pseudo)))
     return idx_labels,result
 
