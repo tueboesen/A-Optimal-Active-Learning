@@ -3,6 +3,7 @@ import torch
 from scipy.sparse import diags
 from scipy.sparse.linalg import cg, LinearOperator
 from scipy.special import softmax
+
 def SSL_clustering(alpha, L, Yobs, w, eta, TOL=1e-9,MAXITER=10000):
     """
     Minimizes the objective function:
@@ -10,10 +11,14 @@ def SSL_clustering(alpha, L, Yobs, w, eta, TOL=1e-9,MAXITER=10000):
     s.t. Ye = 0
     which has the closed form solution:
     U = (W + alpha*L)^-1 W * Yobs * C
-    :param alpha: hyperparameter
+
+    :param alpha: Hyperparameter
     :param L: Graph Laplacian
     :param Yobs: labelled data
-    :param balance_weights: If true it will ensure that the weights of each class adds up to 1. (this should be used if the classes have different number of sampled points)
+    :param w: weights
+    :param eta: Hyperparameter
+    :param TOL: tolerance for conjugate gradient routine
+    :param MAXITER: max iterations for conjugate gradient routine
     :return:
     """
     if isinstance(Yobs, torch.Tensor):

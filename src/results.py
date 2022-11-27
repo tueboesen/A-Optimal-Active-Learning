@@ -5,15 +5,24 @@ import numpy as np
 
 
 def init_results(methods):
+    """
+    Initializes the results dictionary.
+    :param methods:
+    :return:
+    """
     results = []
     for method_name, method_val in methods.items():
-        res = setup_result()
+        res = create_result_subcategories()
         res['method'] = method_name
         results.append(res)
     return results
 
 
-def setup_result():
+def create_result_subcategories():
+    """
+    creates the relevant sub-catergories to store results in.
+    :return:
+    """
     result = {
     'nidx': [],
     'cluster_acc': [],
@@ -24,12 +33,27 @@ def setup_result():
 
 
 def update_result(results,idx_known,cluster_acc):
+    """
+    Adds data to results dictionary.
+    :param results:
+    :param idx_known:
+    :param cluster_acc:
+    :return:
+    """
     results['nidx'].append(len(idx_known))
     results['cluster_acc'].append(cluster_acc)
     results['idx_known'].append(idx_known)
     return results
 
 def save_results(results,result,fileloc,j):
+    """
+    Saves results dictionary to disk
+    :param results:
+    :param result:
+    :param fileloc:
+    :param j:
+    :return:
+    """
     results[j]['nidx'].append(result['nidx'])
     results[j]['cluster_acc'].append(result['cluster_acc'])
     results[j]['test_acc'].append(result['test_acc'])
@@ -40,7 +64,12 @@ def save_results(results,result,fileloc,j):
             f.write("{:30s} : {} \n".format(key, value))
 
 def load_result(fileloc):
-    result = setup_result()
+    """
+    Loads results from disk.
+    :param fileloc:
+    :return:
+    """
+    result = create_result_subcategories()
     with open(fileloc, 'r') as f:
         # data = f.read()
         Lines = f.readlines()
@@ -53,9 +82,15 @@ def load_result(fileloc):
 
 
 def plot_result(x,y,title,legend):
-    # x = result['nidx']
+    """
+    plots y as a function of x.
+    :param x: should be of shape [nrepeats,.]
+    :param y:
+    :param title:
+    :param legend:
+    :return:
+    """
     x_mean = np.mean(x, axis=0)
-    # y=result['cluster_acc']
     y_mean = np.mean(y, axis=0)
     y_std = np.std(y, axis=0)
     h = plt.plot(x_mean, y_mean, '-o', label=legend, markersize=3)
@@ -65,8 +100,6 @@ def plot_result(x,y,title,legend):
     plt.ylabel('Accuracy (%)')
     plt.legend()
     return
-
-
 
 if __name__ == '__main__':
     fileloc_adap = 'E:/Dropbox/ComputationalGenetics/text/Active Learning/Version2/figures/MNIST/active_learning_adaptive.txt'

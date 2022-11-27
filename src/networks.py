@@ -6,7 +6,14 @@ from torchvision.models.resnet import Bottleneck, BasicBlock, conv1x1
 from src.utils import determine_network_param
 
 
-def select_network(type,nc,LOG):
+def select_network(type: str,nc: int,LOG):
+    """
+    A wrapper function that selects the network type.
+    :param type:
+    :param nc:
+    :param LOG:
+    :return:
+    """
     if type == 'resnet':
         net = resnet18_custom(num_classes=nc,channels_in=1)
     elif type == 'mobilenet':
@@ -17,12 +24,10 @@ def select_network(type,nc,LOG):
     return net
 
 
-
-
-
-
-
 class ResNet_custom(nn.Module):
+    """
+    Based on the classic resnet18 network.
+    """
 
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,

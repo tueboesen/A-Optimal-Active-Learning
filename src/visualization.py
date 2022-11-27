@@ -3,6 +3,13 @@ import numpy as np
 
 
 def select_preview(dataset,dataloader,save=None):
+    """
+    Previews the dataset.
+    :param dataset:
+    :param dataloader:
+    :param save:
+    :return:
+    """
     if dataset == 'mnist':
         pass
     elif dataset == 'circles':
@@ -14,6 +21,12 @@ def select_preview(dataset,dataloader,save=None):
     return
 
 def preview_circles(dataloader,save=None):
+    """
+    Generates preview pictures of the circledisk datasets and their true classes
+    :param dataloader:
+    :param save:
+    :return:
+    """
     xy = (dataloader.dataset.imgs).numpy()
     labels = dataloader.dataset.labels
     labels_unique = np.unique(labels)
@@ -31,6 +44,13 @@ def preview_circles(dataloader,save=None):
     return
 
 def plot_results(results,groupid,save=None):
+    """
+    Plots the results of the clustering on the trained data. Also plots the results on the test dataset
+    :param results:
+    :param groupid:
+    :param save:
+    :return:
+    """
     fig_c = plt.figure(figsize=[10, 10])
     plt.clf()
     for result in results:

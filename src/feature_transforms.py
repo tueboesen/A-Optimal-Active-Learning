@@ -7,7 +7,14 @@ from src.optimization import train_AE
 from src.utils import determine_network_param
 
 
-def select_feature_transform(dataloader,c):
+def autoencode_features(dataloader, c):
+    """
+    Uses a simple autoencoder to do a feature transform.
+
+    :param dataloader: a pytorch dataloader
+    :param c: configuration args namespace with a bunch of parameters needed for the autoencoder to run.
+    :return:
+    """
     if c.feature_transform == 'autoencoder':
         if c.FT_load:
             c.LOG.info("Loading autoencoder from file: {}".format(c.FT_load))

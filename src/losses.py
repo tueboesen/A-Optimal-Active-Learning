@@ -26,7 +26,6 @@ class cross_entropy_probabilities(torch.nn.Module):
     """
     Cross entropy function that can handle probability targets
     """
-
     def __init__(self,reduction='none'):
         self.reduction = reduction
         super(cross_entropy_probabilities,self).__init__()

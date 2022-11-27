@@ -2,17 +2,15 @@ import logging
 from datetime import datetime
 
 
-def setup_custom_logger(name,logfile_loc,mode):
+def setup_custom_logger(logfile_loc: str, mode: str, name: str = 'runner') -> logging.Logger:
     """
-    Starts a logger that prints to a file and to the screen.
-    :param name:
-    :param logfile_loc:
+    Starts a custom logger that logs all the results of the run.
+    :param logfile_loc: Location of logfile on disk
+    :param mode: logging mode
+    :param name: name of logger
     :return:
     """
-    # formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
     sh = logging.StreamHandler()
-    # sh.setFormatter(formatter)
-
     logger = logging.getLogger(name)
     if mode == 'debug':
         logger.setLevel(logging.DEBUG)
@@ -22,16 +20,15 @@ def setup_custom_logger(name,logfile_loc,mode):
     logger.addHandler(sh)
 
     fh = logging.FileHandler(logfile_loc)
-    # fh.setFormatter(formatter)
     logger.addHandler(fh)
     logger.info('Starting logfile at {}.'.format(datetime.now()))
     return logger
 
 
-def close_logger(log):
+def close_logger(log: logging.Logger) -> None:
     """
     Removes all handlers from logger and effectively closes the logger down.
-    :param log:
+    :param log: a handler to a logger
     :return:
     """
     log.info('Closing logfile at {}.'.format(datetime.now()))

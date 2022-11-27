@@ -18,8 +18,6 @@ def find_weights_from_labels(y,idxs,include_class_balance=True):
     n,nc = y.shape
     labels = np.argmax(y,axis=1)
     w = np.zeros(n)
-    # ysort = np.sort(y,axis=1)
-    # w_entropy = ysort[:,-1] - ysort[:,-2]
     w_entropy = y[np.arange(y.shape[0]),labels]
     w_entropy[idxs] = 1 #All the known labels we set to 1.
 
@@ -33,13 +31,3 @@ def find_weights_from_labels(y,idxs,include_class_balance=True):
     else:
         w = w_entropy / np.sum(w_entropy) * n
     return w
-
-
-def create_cardinal_Weight(U):
-    #This one should not just balance the weight according to the cardinal number, but to the entropy weights.
-    #Hence it should come after
-    nx, nc = U.shape
-    dt = U.dtype
-    e1 = np.ones((nx, 1), dtype=dt)
-    weights = nx / nc * U @ (U.T @ e1)
-    return weights

@@ -3,9 +3,17 @@ import random
 import numpy as np
 
 
-def run_passive_learning(idx_labels,y,nlabels_pr_class,class_balance=False):
+def run_passive_learning(idx_labels: list, y: np.ndarray, nlabels_pr_class: int, class_balance: bool = False):
+    """
+    Opposed to active learning, this routine selects new datapoints to label randomly or randomly but balanced (equal number from each class).
+    :param idx_labels: idx of already known labels
+    :param y: true label pseudo-probabilities (before softmax)
+    :param nlabels_pr_class: number of labels to learn per class
+    :param class_balance: whether to learn new labels evenly between the different classes or just draw new labels randomly
+    :return: list of labels to learn
+    """
     n, nc = y.shape
-    labels = np.argmax(y,axis=1)
+    labels = np.argmax(y, axis=1)
     if class_balance:
         labels_unique = np.asarray(range(nc))
         for i, label in enumerate(labels_unique):

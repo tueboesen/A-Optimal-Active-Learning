@@ -13,18 +13,13 @@ import torch
 import torchvision
 
 
-def test(net,LOG,dataloader_test,device='cpu'):
+def test(net, LOG, dataloader_test, device='cpu'):
     """
-    Standard training routine.
-    :param net: Network to train
-    :param optimizer: Optimizer to use
-    :param dataloader_train: Data to train on
-    :param loss_fnc: loss function to use
-    :param LOG: LOG file handler to print to
-    :param device: device to perform computation on
-    :param dataloader_test: Dataloader to test the accuracy on after each epoch.
-    :param epochs: Number of epochs to train
-    :param use_probabilities: If False the target will be one-hot, otherwise it will be some kind of probability array (might be zero centered)
+    Standard testing routine.
+    :param net: neural network to test
+    :param LOG: Logging function
+    :param dataloader_test: a pytorch dataloader
+    :param device: device to run test on
     :return:
     """
     net.to(device)
@@ -33,7 +28,7 @@ def test(net,LOG,dataloader_test,device='cpu'):
     with torch.no_grad():
         correct = 0
         total = 0
-        for images_v, labels_v,_,_ in dataloader_test:
+        for images_v, labels_v, _, _ in dataloader_test:
             images_v = images_v.to(device)
             labels_v = labels_v.to(device)
             outputs_v = net(images_v)
@@ -42,19 +37,18 @@ def test(net,LOG,dataloader_test,device='cpu'):
             correct += (predicted == labels_v).sum()
         accuracy = 100 * float(correct) / float(total)
         t1 = time.time()
-        LOG.info('Accuracy(test): {:3.2f}%  Time: {:.2f} '.format(accuracy, t1-t0))
+        LOG.info('Accuracy(test): {:3.2f}%  Time: {:.2f} '.format(accuracy, t1 - t0))
     net.train()
     return accuracy
 
 
-
-def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_test=None,epochs=100,use_probabilities=True):
+def train(net, optimizer, dataloader_train, loss_type, LOG, device='cpu', dataloader_test=None, epochs=100, use_probabilities=True):
     """
     Standard training routine.
     :param net: Network to train
     :param optimizer: Optimizer to use
     :param dataloader_train: Data to train on
-    :param loss_fnc: loss function to use
+    :param loss_type: loss function to use
     :param LOG: LOG file handler to print to
     :param device: device to perform computation on
     :param dataloader_test: Dataloader to test the accuracy on after each epoch.
@@ -79,7 +73,7 @@ def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_t
             optimizer.zero_grad()
             outputs = net(images)
             if use_probabilities:
-                prob = F.softmax(outputs,dim=1)
+                prob = F.softmax(outputs, dim=1)
             else:
                 prob = outputs
             loss = loss_fnc(prob, target).mean()
@@ -91,7 +85,7 @@ def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_t
             with torch.no_grad():
                 correct = 0
                 total = 0
-                for images_v, labels_v,_,_ in dataloader_test:
+                for images_v, labels_v, _, _ in dataloader_test:
                     images_v = images_v.to(device)
                     labels_v = labels_v.to(device)
                     outputs_v = net(images_v)
@@ -100,16 +94,19 @@ def train(net,optimizer,dataloader_train,loss_type,LOG,device='cpu',dataloader_t
                     correct += (predicted == labels_v).sum()
                 accuracy = 100 * float(correct) / float(total)
                 t1 = time.time()
-                LOG.info('Epoch: {:4d}  Loss(train): {:6.2f}  Accuracy(test): {:3.2f}%  Time: {:.2f} '.format(epoch, loss_epoch, accuracy, t1-t0))
+                LOG.info('Epoch: {:4d}  Loss(train): {:6.2f}  Accuracy(test): {:3.2f}%  Time: {:.2f} '.format(epoch, loss_epoch, accuracy, t1 - t0))
             net.train()
     return net, accuracy
 
-def eval_net(net,dataset,device='cpu',batchsize=501):
+
+def test_dataset(net, dataset, device='cpu', batchsize=501):
     """
-    Splits the dataset up into manageable batches and run each batch through the network and returns the output.
-    :param net: Network
-    :param dataloader: standard pytorch dataloader to iterate through. Note we do not use the builtin data
+    Much like test, this function is designed to evaluate a neural network, but on a dataset rather than a dataloader.
+    #TODO merge this with test
+    :param net:
+    :param dataset:
     :param device:
+    :param batchsize:
     :return:
     """
     net.to(device)
@@ -118,7 +115,7 @@ def eval_net(net,dataset,device='cpu',batchsize=501):
         nsamples = len(dataset)
         prob_tmp = []
         for i in range(0, nsamples, batchsize):
-            batch = dataset.imgs[i:min(i + batchsize,nsamples)]
+            batch = dataset.imgs[i:min(i + batchsize, nsamples)]
             outputi = net(batch.to(device))
             probi = F.softmax(outputi, dim=1)
             prob_tmp.append(probi.cpu())
@@ -126,7 +123,8 @@ def eval_net(net,dataset,device='cpu',batchsize=501):
     net.train()
     return prob
 
-def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100,save=None):
+
+def train_AE(net, optimizer, dataloader_train, loss_fnc, LOG, device='cpu', epochs=100, save=None):
     """
     Training routine for an autoencoder
     :param net: Network to train
@@ -148,7 +146,7 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
         for i, (images, _, _, _) in enumerate(dataloader_train):
             images = images.to(device)
             optimizer.zero_grad()
-            _,decoded = net(images)
+            _, decoded = net(images)
             loss = loss_fnc(decoded, images)
             loss.backward()
             optimizer.step()
@@ -162,8 +160,8 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
         enc_tmp = []
         dec_tmp = []
         for i in range(0, nsamples, batchsize):
-            batch = dataloader_train.dataset.imgs[i:min(i + batchsize,nsamples)]
-            encoded,decoded = net(batch.to(device))
+            batch = dataloader_train.dataset.imgs[i:min(i + batchsize, nsamples)]
+            encoded, decoded = net(batch.to(device))
             enc_tmp.append(encoded.cpu())
             dec_tmp.append(decoded.cpu())
         encoded = torch.cat(enc_tmp, dim=0)
@@ -180,17 +178,18 @@ def train_AE(net,optimizer,dataloader_train,loss_fnc,LOG,device='cpu',epochs=100
         plt.pause(0.4)
         if save:
             fig.savefig(save)
-    return net,encoded
+    return net, encoded
 
-def run_AE(net,dataloader,device='cpu'):
+
+def run_AE(net, dataloader, device='cpu'):
     """
-    This function is used to an already trained autoencoder on a dataset in smaller batches. This should be removed and merged with eval_net instead
+    This function is used on an already trained autoencoder on a dataset in smaller batches. This should be removed and merged with eval_net instead
     :param net:
     :param dataloader:
     :param device:
     :return:
     """
-    #TODO merge with EVAL_net()
+    # TODO merge with test()
     net.to(device)
     net.eval()
     with torch.no_grad():
@@ -199,10 +198,9 @@ def run_AE(net,dataloader,device='cpu'):
         enc_tmp = []
         dec_tmp = []
         for i in range(0, nsamples, batchsize):
-            batch = dataloader.dataset.imgs[i:min(i + batchsize,nsamples)]
-            encoded,decoded = net(batch.to(device))
+            batch = dataloader.dataset.imgs[i:min(i + batchsize, nsamples)]
+            encoded, decoded = net(batch.to(device))
             enc_tmp.append(encoded.cpu())
             dec_tmp.append(decoded.cpu())
         encoded = torch.cat(enc_tmp, dim=0)
-
     return encoded

@@ -18,6 +18,9 @@ def select_network(network,decode_dim=10):
 
 
 class autoencoder(nn.Module):
+    """
+    A simple convolutional autoencoder
+    """
     def __init__(self):
         super(autoencoder, self).__init__()
         self.encoder = nn.Sequential(
@@ -47,6 +50,9 @@ class autoencoder(nn.Module):
         return enc,dec
 
 class autoencoder_linear(nn.Module):
+    """
+    A simple linear autoencoder.
+    """
     def __init__(self,decode_dim=10):
         super(autoencoder_linear, self).__init__()
         self.decode_dim = decode_dim

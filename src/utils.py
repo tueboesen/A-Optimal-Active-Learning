@@ -1,12 +1,15 @@
 import random
-
 import numpy as np
 import torch
+import torch.nn as nn
 
-
-# Define some functions
-
-def fix_seed(seed, include_cuda=True):
+def fix_seed(seed: int, include_cuda: bool = True) -> None:
+    """
+    Set the seed in order to create reproducible results, note that setting the seed also does it for gpu calculations, which slows them down.
+    :param seed: an integer to fix the seed to
+    :param include_cuda: whether to fix the seed for cuda calculations as well
+    :return:
+    """
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -18,5 +21,10 @@ def fix_seed(seed, include_cuda=True):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
 
-def determine_network_param(net):
+def determine_network_param(net: type[nn.Module]) -> int:
+    """
+    Determines the number of learnable parameters in a neural network
+    :param net: the neural network to determine the number of parameters in.
+    :return:
+    """
     return sum(p.numel() for p in net.parameters() if p.requires_grad)
