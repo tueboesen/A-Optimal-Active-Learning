@@ -45,13 +45,6 @@ This is a classic benchmark dataset that has previously been used in active lear
 `run_MNIST.py` will download and run MNIST, using all 60000 training samples and 10000 testing samples. The runtime of this example is very long and will likely take between a week and a month to run on a normal computer. However, the code can easily be sped up by lowering the amount of training/testing samples, and the number of training epochs the neural network runs after each active learning step.
 
 
-
-
-
-# Requirements:
-The code is written in python/pytorch, and details of the requirements can be found in requirements.txt.
-
-
 ## Cite
 If you found this work useful in your research, please consider citing:
 ```
